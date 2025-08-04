@@ -1,0 +1,28 @@
+2025-08-04 01:12:13,369 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-04 01:12:13,488 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-04 01:12:13,546 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-04 01:12:13,546 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-04 01:12:13,546 - __main__ - INFO - 🧪 Running in TEST MODE
+2025-08-04 01:12:13,707 - __main__ - INFO - ✅ Zerodha connection: Piyush .
+2025-08-04 01:12:13,800 - __main__ - INFO - 💰 Available cash: ₹-88.50
+2025-08-04 01:12:14,058 - __main__ - INFO - 📊 Market data test: 225 records for RELIANCE
+2025-08-04 01:12:14,062 - __main__ - INFO - 📈 Mean reversion test: None
+2025-08-04 01:12:14,062 - __main__ - INFO - 📈 Momentum test: {'action': 'SELL', 'strategy': 'momentum', 'confidence': 60, 'reason': 'Bearish momentum, MACD divergence'}
+2025-08-04 01:12:15,378 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7293894742:AAEZXLm42rFM5FWcH-rpNef6bVht5DV5I6I/sendMessage "HTTP/1.1 403 Forbidden"
+2025-08-04 01:12:15,380 - __main__ - ERROR - ❌ Failed to send Telegram message: Forbidden: bots can't send messages to bots
+2025-08-04 01:12:15,380 - __main__ - INFO - ✅ Telegram test message sent
+2025-08-04 01:12:15,381 - __main__ - INFO - ✅ All tests completed successfully
+2025-08-04 01:12:21,474 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-04 01:12:21,665 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-04 01:12:21,712 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-04 01:12:21,712 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-04 01:12:21,712 - __main__ - INFO - 🧪 Running in TEST MODE
+2025-08-04 01:12:21,770 - __main__ - INFO - ✅ Zerodha connection: Piyush .
+2025-08-04 01:12:21,830 - __main__ - INFO - 💰 Available cash: ₹-88.50
+2025-08-04 01:12:22,273 - __main__ - INFO - 📊 Market data test: 225 records for RELIANCE
+2025-08-04 01:12:22,277 - __main__ - INFO - 📈 Mean reversion test: None
+2025-08-04 01:12:22,278 - __main__ - INFO - 📈 Momentum test: {'action': 'SELL', 'strategy': 'momentum', 'confidence': 60, 'reason': 'Bearish momentum, MACD divergence'}
+2025-08-04 01:12:23,109 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7293894742:AAEZXLm42rFM5FWcH-rpNef6bVht5DV5I6I/sendMessage "HTTP/1.1 403 Forbidden"
+2025-08-04 01:12:23,109 - __main__ - ERROR - ❌ Failed to send Telegram message: Forbidden: bots can't send messages to bots
+2025-08-04 01:12:23,110 - __main__ - INFO - ✅ Telegram test message sent
+2025-08-04 01:12:23,110 - __main__ - INFO - ✅ All tests completed successfully

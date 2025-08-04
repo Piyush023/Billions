@@ -1,0 +1,70 @@
+{
+    "zerodha": {
+        "api_key": "2rq25kkztlhfvfvn",
+        "api_secret": "4hgsqgeyroj0ibswqg0kk5dd5o8w9l8s",
+        "user_id": "SRP906",
+        "password": "",
+        "totp_key": "",
+        "access_token": "XscH4gyNaywAtYDNLaQg1GzRO13pWJVW"
+    },
+    "capital": {
+        "total_capital": 10000.0,
+        "max_position_size": 0.2,
+        "daily_loss_limit": 0.03,
+        "stop_loss_pct": 0.05,
+        "take_profit_pct": 0.08,
+        "max_positions": 3,
+        "min_trade_amount": 1000
+    },
+    "strategies": {
+        "mean_reversion": {
+            "active": true,
+            "allocation": 0.5,
+            "rsi_oversold": 30,
+            "rsi_overbought": 70,
+            "bb_period": 20
+        },
+        "momentum": {
+            "active": true,
+            "allocation": 0.5,
+            "sma_fast": 20,
+            "sma_slow": 50,
+            "min_volume_ratio": 1.2
+        }
+    },
+    "notifications": {
+        "telegram_token": "7293894742:AAEZXLm42rFM5FWcH-rpNef6bVht5DV5I6I",
+        "chat_id": "7293894742",
+        "send_daily_report": true,
+        "send_trade_alerts": true
+    },
+    "trading_symbols": [
+        "RELIANCE",
+        "TCS",
+        "HDFCBANK",
+        "INFY",
+        "HINDUNILVR",
+        "ICICIBANK",
+        "KOTAKBANK",
+        "SBIN",
+        "BHARTIARTL",
+        "ITC"
+    ],
+    "market_hours": {
+        "start_time": "09:15",
+        "end_time": "15:30",
+        "trading_days": [
+            0,
+            1,
+            2,
+            3,
+            4
+        ]
+    },
+    "risk_management": {
+        "max_correlation": 0.7,
+        "max_sector_exposure": 0.4,
+        "trailing_stop_loss": false,
+        "position_timeout_days": 5
+    }
+}

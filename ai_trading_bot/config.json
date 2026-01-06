@@ -5,11 +5,11 @@
         "user_id": "SRP906",
         "password": "",
         "totp_key": "",
-        "access_token": "CzYXevvPJq1XgLYt5L9zvp9TWNXQExN5"
+        "access_token": "3OC4oQ0PGfr5q7Q14hc232mcBZzLxKu3"
     },
     "capital": {
         "total_capital": 10000.0,
-        "max_position_size": 0.4,
+        "max_position_size": 0.2,
         "daily_loss_limit": 0.03,
         "stop_loss_pct": 0.05,
         "take_profit_pct": 0.08,
@@ -29,7 +29,7 @@
             "allocation": 0.5,
             "sma_fast": 20,
             "sma_slow": 50,
-            "min_volume_ratio": 0.3
+            "min_volume_ratio": 1.2
         }
     },
     "notifications": {
@@ -39,16 +39,16 @@
         "send_trade_alerts": true
     },
     "trading_symbols": [
-        "SBIN",
-        "ITC",
-        "BHARTIARTL",
-        "TATASTEEL",
-        "WIPRO",
-        "POWERGRID",
-        "ONGC",
-        "COALINDIA",
         "RELIANCE",
-        "HDFCBANK"
+        "TCS",
+        "HDFCBANK",
+        "INFY",
+        "HINDUNILVR",
+        "ICICIBANK",
+        "KOTAKBANK",
+        "SBIN",
+        "BHARTIARTL",
+        "ITC"
     ],
     "market_hours": {
         "start_time": "09:15",

@@ -1,0 +1,71 @@
+2025-08-06 00:00:06,126 - __main__ - ERROR - ❌ Failed to initialize Zerodha connection: Incorrect `api_key` or `access_token`.
+2025-08-06 00:13:10,012 - __main__ - ERROR - ❌ Access token expired or invalid
+2025-08-06 00:13:10,013 - __main__ - INFO - 💡 Please run 'python zerodha_auth.py' to generate a new access token
+2025-08-06 00:13:10,013 - __main__ - INFO - 📝 Then update your .env file with the new ZERODHA_ACCESS_TOKEN
+2025-08-06 00:13:10,013 - __main__ - ERROR - ❌ Failed to initialize Zerodha connection: Incorrect `api_key` or `access_token`.
+2025-08-06 00:13:35,438 - __main__ - ERROR - ❌ Access token expired or invalid
+2025-08-06 00:13:35,439 - __main__ - INFO - 💡 Please run 'python zerodha_auth.py' to generate a new access token
+2025-08-06 00:13:35,440 - __main__ - INFO - 📝 Then update your .env file with the new ZERODHA_ACCESS_TOKEN
+2025-08-06 00:13:35,440 - __main__ - ERROR - ❌ Failed to initialize Zerodha connection: Incorrect `api_key` or `access_token`.
+2025-08-06 00:13:49,545 - __main__ - ERROR - ❌ Access token expired or invalid
+2025-08-06 00:13:49,545 - __main__ - INFO - 💡 Please run 'python zerodha_auth.py' to generate a new access token
+2025-08-06 00:13:49,545 - __main__ - INFO - 📝 Then update your .env file with the new ZERODHA_ACCESS_TOKEN
+2025-08-06 00:13:49,545 - __main__ - ERROR - ❌ Failed to initialize Zerodha connection: Incorrect `api_key` or `access_token`.
+2025-08-06 00:14:12,193 - __main__ - ERROR - ❌ ZERODHA_ACCESS_TOKEN missing in environment variables
+2025-08-06 00:14:12,193 - __main__ - INFO - 💡 Please run 'python zerodha_auth.py' to generate a new access token
+2025-08-06 00:14:12,193 - __main__ - ERROR - ❌ Failed to initialize Zerodha connection: Missing access token
+2025-08-06 00:14:51,701 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-06 00:14:52,101 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-06 00:14:52,148 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-06 00:14:52,148 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-06 00:14:52,148 - __main__ - INFO - 🚀 Starting trading bot...
+2025-08-06 00:14:52,148 - __main__ - ERROR - ❌ Trading bot error: no running event loop
+2025-08-06 00:16:04,077 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-06 00:16:04,331 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-06 00:16:04,383 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-06 00:16:04,383 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-06 00:16:04,383 - __main__ - INFO - 🧪 Running in TEST MODE
+2025-08-06 00:16:04,509 - __main__ - INFO - ✅ Zerodha connection: Piyush .
+2025-08-06 00:16:04,638 - __main__ - INFO - 💰 Available cash: ₹-88.50
+2025-08-06 00:16:04,954 - __main__ - INFO - 📊 Market data test: 225 records for RELIANCE
+2025-08-06 00:16:04,960 - __main__ - INFO - 📈 Mean reversion test: None
+2025-08-06 00:16:04,960 - __main__ - INFO - 📈 Momentum test: None
+2025-08-06 00:16:05,764 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7293894742:AAEZXLm42rFM5FWcH-rpNef6bVht5DV5I6I/sendMessage "HTTP/1.1 403 Forbidden"
+2025-08-06 00:16:05,764 - __main__ - ERROR - ❌ Failed to send Telegram message: Forbidden: bots can't send messages to bots
+2025-08-06 00:16:05,765 - __main__ - INFO - ✅ Telegram test message sent
+2025-08-06 00:16:05,765 - __main__ - INFO - ✅ All tests completed successfully
+2025-08-06 00:16:15,105 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-06 00:16:15,347 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-06 00:16:15,393 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-06 00:16:15,393 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-06 00:16:15,393 - __main__ - INFO - 🚀 Starting trading bot...
+2025-08-06 00:16:15,393 - __main__ - ERROR - ❌ Trading bot error: no running event loop
+2025-08-06 00:16:35,948 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-06 00:16:36,209 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-06 00:16:36,268 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-06 00:16:36,268 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-06 00:16:36,268 - __main__ - INFO - 🚀 Starting trading bot...
+2025-08-06 00:16:36,269 - __main__ - ERROR - ❌ Trading bot error: no running event loop
+2025-08-06 00:17:58,569 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-06 00:17:58,801 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-06 00:17:58,849 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-06 00:17:58,849 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-06 00:17:58,849 - __main__ - INFO - 🧪 Running in TEST MODE
+2025-08-06 00:17:58,978 - __main__ - INFO - ✅ Zerodha connection: Piyush .
+2025-08-06 00:17:59,114 - __main__ - INFO - 💰 Available cash: ₹-88.50
+2025-08-06 00:17:59,525 - __main__ - INFO - 📊 Market data test: 225 records for RELIANCE
+2025-08-06 00:17:59,530 - __main__ - INFO - 📈 Mean reversion test: None
+2025-08-06 00:17:59,531 - __main__ - INFO - 📈 Momentum test: None
+2025-08-06 00:17:59,531 - __main__ - INFO - ✅ Telegram test message sent
+2025-08-06 00:17:59,532 - __main__ - INFO - ✅ All tests completed successfully
+2025-08-06 00:18:22,094 - billions - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-06 00:18:22,358 - billions - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-06 00:18:22,411 - billions - INFO - ✅ Telegram bot initialized
+2025-08-06 00:18:22,411 - billions - INFO - 🤖 Trading Bot initialized successfully
+2025-08-06 00:25:53,264 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-06 00:25:53,370 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-06 00:25:53,423 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-06 00:25:53,424 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-06 00:25:53,424 - __main__ - INFO - 🚀 Starting trading bot...
+2025-08-06 00:26:00,529 - __main__ - INFO - 🛑 Trading bot stopped by user
+2025-08-06 00:26:00,530 - __main__ - INFO - 🛑 Trading bot stopped

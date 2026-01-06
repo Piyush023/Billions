@@ -1,0 +1,116 @@
+2025-08-07 00:42:44,653 - __main__ - ERROR - ❌ Access token expired or invalid
+2025-08-07 00:42:44,654 - __main__ - INFO - 💡 Please run 'python zerodha_auth.py' to generate a new access token
+2025-08-07 00:42:44,654 - __main__ - INFO - 📝 Then update your .env file with the new ZERODHA_ACCESS_TOKEN
+2025-08-07 00:42:44,654 - __main__ - ERROR - ❌ Failed to initialize Zerodha connection: Incorrect `api_key` or `access_token`.
+2025-08-07 00:44:18,733 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:44:18,840 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:44:18,886 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:44:18,886 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:44:18,886 - __main__ - INFO - 🚀 Starting trading bot...
+2025-08-07 00:49:39,104 - __main__ - INFO - 🛑 Trading bot stopped by user
+2025-08-07 00:49:39,107 - __main__ - INFO - 🛑 Trading bot stopped
+2025-08-07 00:49:41,734 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:49:41,824 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:49:41,873 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:49:41,874 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:49:41,874 - __main__ - INFO - 🚀 Starting trading bot...
+2025-08-07 00:50:16,895 - __main__ - INFO - 🛑 Trading bot stopped by user
+2025-08-07 00:50:16,896 - __main__ - INFO - 🛑 Trading bot stopped
+2025-08-07 00:52:52,165 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:52:52,272 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:52:52,320 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:52:52,320 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:52:52,320 - __main__ - INFO - 📰 Starting PAPER TRADING MODE
+2025-08-07 00:52:52,320 - __main__ - INFO - 💰 Paper trading capital: ₹10,000.00
+2025-08-07 00:56:34,387 - __main__ - INFO - 🛑 Paper trading stopped by user
+2025-08-07 00:56:34,390 - __main__ - INFO - 🛑 Trading bot stopped
+2025-08-07 00:56:37,033 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:56:37,134 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:56:37,189 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:56:37,189 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:56:37,189 - __main__ - INFO - 📰 Starting PAPER TRADING MODE
+2025-08-07 00:56:37,189 - __main__ - INFO - 💰 Paper trading capital: ₹10,000.00
+2025-08-07 00:56:51,639 - __main__ - INFO - 🛑 Paper trading stopped by user
+2025-08-07 00:56:51,639 - __main__ - INFO - 🛑 Trading bot stopped
+2025-08-07 00:57:03,086 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:57:03,190 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:57:03,233 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:57:03,233 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:57:03,233 - __main__ - INFO - 🤖 Starting AI TEST MODE
+2025-08-07 00:57:14,427 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:57:14,525 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:57:14,574 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:57:14,574 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:57:14,574 - __main__ - INFO - 🤖 Starting AI TEST MODE
+2025-08-07 00:57:27,418 - __main__ - ERROR - ❌ AI components not available: No module named 'nsetools'
+2025-08-07 00:57:27,418 - __main__ - INFO - 💡 Please run the AI system setup first
+2025-08-07 00:57:27,418 - __main__ - INFO - ✅ AI test mode completed
+2025-08-07 00:57:32,939 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:57:33,041 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:57:33,085 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:57:33,085 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:57:33,086 - __main__ - INFO - 🤖 Starting AI TEST MODE
+2025-08-07 00:57:34,161 - __main__ - ERROR - ❌ AI components not available: No module named 'nsetools'
+2025-08-07 00:57:34,161 - __main__ - INFO - 💡 Please run the AI system setup first
+2025-08-07 00:57:34,161 - __main__ - INFO - ✅ AI test mode completed
+2025-08-07 00:57:50,714 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:57:50,810 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:57:50,854 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:57:50,854 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:57:50,854 - __main__ - INFO - 🤖 Starting AI TEST MODE
+2025-08-07 00:57:53,530 - dynamic_stock_screener - ERROR - Failed to load NSE universe: 'list' object has no attribute 'keys'
+2025-08-07 00:57:53,531 - ai_trading_orchestrator - INFO - 🤖 AI Trading Orchestrator initialized
+2025-08-07 00:57:53,531 - __main__ - INFO - ✅ AI Orchestrator initialized successfully
+2025-08-07 00:57:53,531 - __main__ - INFO - 🔍 Testing AI stock screening...
+2025-08-07 00:57:53,531 - ai_trading_orchestrator - INFO - 🔍 Updating trading universe with AI screening...
+2025-08-07 00:57:53,531 - dynamic_stock_screener - INFO - Starting dynamic stock screening...
+2025-08-07 00:58:17,342 - dynamic_stock_screener - INFO - Basic filtering: 31 stocks passed from 37
+2025-08-07 00:58:17,343 - dynamic_stock_screener - INFO - Scoring 31 stocks...
+2025-08-07 00:58:19,276 - dynamic_stock_screener - INFO - Screening completed. Top 20 stocks identified.
+2025-08-07 00:58:19,277 - dynamic_stock_screener - INFO - 1. HINDUNILVR: Score 68.5 (T:70.0, F:95.0, AI:40.0)
+2025-08-07 00:58:19,277 - dynamic_stock_screener - INFO - 2. ASIANPAINT: Score 64.0 (T:85.0, F:75.0, AI:25.0)
+2025-08-07 00:58:19,277 - dynamic_stock_screener - INFO - 3. BHARTIARTL: Score 62.0 (T:65.0, F:70.0, AI:50.0)
+2025-08-07 00:58:19,277 - dynamic_stock_screener - INFO - 4. TITAN: Score 62.0 (T:57.5, F:55.0, AI:75.0)
+2025-08-07 00:58:19,277 - dynamic_stock_screener - INFO - 5. NTPC: Score 59.0 (T:57.5, F:70.0, AI:50.0)
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO - ✅ Trading universe updated: 4 stocks
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO - Selected stocks: HINDUNILVR, ASIANPAINT, BHARTIARTL, TITAN
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO - 📊 Market data collected for 0 symbols
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO - 🎓 AI model training completed: 0 symbols processed
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO - 🎯 AI predictions generated for 0 symbols
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO - 📈 Found 0 AI trading opportunities
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO - 🎯 AI Strategy Execution Summary:
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO -    Screening: ✅
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO -    Models: ⏭️
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO -    Predictions: 0 generated
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO -    Exit Signals: 0
+2025-08-07 00:58:19,277 - ai_trading_orchestrator - INFO -    New Opportunities: 0
+2025-08-07 00:58:19,278 - __main__ - INFO - 🎯 AI Signals Generated:
+2025-08-07 00:58:19,278 - __main__ - INFO -   - Buy signals: 0
+2025-08-07 00:58:19,278 - __main__ - INFO -   - Sell signals: 0
+2025-08-07 00:58:19,278 - __main__ - INFO - 🧪 Testing individual AI components...
+2025-08-07 00:58:19,279 - __main__ - INFO - ✅ AI Trading Engine: OK
+2025-08-07 00:58:20,135 - dynamic_stock_screener - ERROR - Failed to load NSE universe: 'list' object has no attribute 'keys'
+2025-08-07 00:58:20,135 - __main__ - INFO - ✅ Dynamic Stock Screener: OK
+2025-08-07 00:58:20,136 - __main__ - INFO - ✅ AI Portfolio Manager: OK
+2025-08-07 00:58:20,136 - __main__ - INFO - 🎉 All AI components are working correctly!
+2025-08-07 00:58:20,136 - __main__ - INFO - ✅ AI test mode completed
+2025-08-07 00:58:33,159 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 00:58:33,258 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 00:58:33,311 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 00:58:33,311 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 00:58:33,311 - __main__ - INFO - 📰 Starting PAPER TRADING MODE
+2025-08-07 00:58:33,311 - __main__ - INFO - 💰 Paper trading capital: ₹10,000.00
+2025-08-07 00:59:25,230 - __main__ - INFO - 🛑 Paper trading stopped by user
+2025-08-07 00:59:25,231 - __main__ - INFO - 🛑 Trading bot stopped
+2025-08-07 01:17:43,409 - billions - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 01:17:43,520 - billions - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 01:17:43,573 - billions - INFO - ✅ Telegram bot initialized
+2025-08-07 01:17:43,573 - billions - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 01:18:49,402 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-07 01:18:49,499 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-07 01:18:49,541 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-07 01:18:49,541 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-07 01:18:49,541 - __main__ - INFO - 📰 Starting PAPER TRADING MODE
+2025-08-07 01:18:49,541 - __main__ - INFO - 💰 Paper trading capital: ₹10,000.00
+2025-08-07 01:18:58,967 - __main__ - INFO - 🛑 Paper trading stopped by user
+2025-08-07 01:18:58,968 - __main__ - INFO - 🛑 Trading bot stopped

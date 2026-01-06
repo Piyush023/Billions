@@ -1,0 +1,126 @@
+2025-08-11 09:25:53,746 - __main__ - ERROR - ❌ Access token expired or invalid
+2025-08-11 09:25:53,746 - __main__ - INFO - 💡 Please run 'python zerodha_auth.py' to generate a new access token
+2025-08-11 09:25:53,746 - __main__ - INFO - 📝 Then update your .env file with the new ZERODHA_ACCESS_TOKEN
+2025-08-11 09:25:53,746 - __main__ - ERROR - ❌ Failed to initialize Zerodha connection: Incorrect `api_key` or `access_token`.
+2025-08-11 09:28:04,737 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-11 09:28:04,881 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-11 09:28:04,930 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-11 09:28:04,930 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-11 09:28:04,930 - __main__ - INFO - 📰 Starting PAPER TRADING MODE
+2025-08-11 09:28:04,930 - __main__ - INFO - 💰 Paper trading capital: ₹10,000.00
+2025-08-11 09:30:32,711 - __main__ - INFO - 🛑 Paper trading stopped by user
+2025-08-11 09:30:32,713 - __main__ - INFO - 🛑 Trading bot stopped
+2025-08-11 09:32:57,686 - billions - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-11 09:32:57,786 - billions - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-11 09:32:57,837 - billions - INFO - ✅ Telegram bot initialized
+2025-08-11 09:32:57,837 - billions - INFO - 🤖 Trading Bot initialized successfully
+2025-08-11 09:32:57,837 - billions - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 09:33:29,891 - billions - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-11 09:33:30,088 - billions - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-11 09:33:30,136 - billions - INFO - ✅ Telegram bot initialized
+2025-08-11 09:33:30,136 - billions - INFO - 🤖 Trading Bot initialized successfully
+2025-08-11 09:34:48,927 - billions - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-11 09:34:49,152 - billions - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-11 09:34:49,210 - billions - INFO - ✅ Telegram bot initialized
+2025-08-11 09:34:49,212 - billions - INFO - 🤖 Trading Bot initialized successfully
+2025-08-11 09:35:24,759 - billions - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-11 09:35:24,940 - billions - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-11 09:35:24,988 - billions - INFO - ✅ Telegram bot initialized
+2025-08-11 09:35:24,988 - billions - INFO - 🤖 Trading Bot initialized successfully
+2025-08-11 09:38:56,754 - billions - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-11 09:38:56,853 - billions - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-11 09:38:56,899 - billions - INFO - ✅ Telegram bot initialized
+2025-08-11 09:38:56,899 - billions - INFO - 🤖 Trading Bot initialized successfully
+2025-08-11 09:39:09,760 - billions - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-11 09:39:09,863 - billions - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-11 09:39:09,912 - billions - INFO - ✅ Telegram bot initialized
+2025-08-11 09:39:09,912 - billions - INFO - 🤖 Trading Bot initialized successfully
+2025-08-11 09:39:41,194 - __main__ - INFO - ✅ Connected to Zerodha as Piyush .
+2025-08-11 09:39:41,359 - __main__ - INFO - 💰 Portfolio Value: ₹0.00
+2025-08-11 09:39:41,407 - __main__ - INFO - ✅ Telegram bot initialized
+2025-08-11 09:39:41,407 - __main__ - INFO - 🤖 Trading Bot initialized successfully
+2025-08-11 09:39:41,407 - __main__ - INFO - 📰 Starting PAPER TRADING MODE
+2025-08-11 09:39:41,407 - __main__ - INFO - 💰 Paper trading capital: ₹10,000.00
+2025-08-11 09:44:41,442 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 09:44:41,900 - __main__ - WARNING - ⚠️  Insufficient paper shares for SBIN
+2025-08-11 09:44:42,071 - __main__ - INFO - 📰 PAPER BUY: 2 SBIN at ₹822.45 - Confidence: 60.0%
+2025-08-11 09:44:43,775 - __main__ - WARNING - ⚠️  Insufficient paper shares for ONGC
+2025-08-11 09:44:44,141 - __main__ - WARNING - ⚠️  Insufficient paper shares for COALINDIA
+2025-08-11 09:49:44,710 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 09:49:45,356 - __main__ - INFO - 📰 PAPER BUY: 7 ITC at ₹415.30 - Confidence: 75.0%
+2025-08-11 09:49:46,653 - __main__ - WARNING - ⚠️  Insufficient paper shares for ONGC
+2025-08-11 09:49:47,076 - __main__ - INFO - 📰 PAPER BUY: 8 COALINDIA at ₹377.55 - Confidence: 83.1%
+2025-08-11 09:49:47,226 - __main__ - INFO - 📰 PAPER SELL: 3 COALINDIA at ₹377.55
+2025-08-11 09:54:47,730 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 09:54:48,131 - __main__ - INFO - 📰 PAPER BUY: 2 SBIN at ₹819.90 - Confidence: 60.0%
+2025-08-11 09:54:48,499 - __main__ - INFO - 📰 PAPER BUY: 2 ITC at ₹415.95 - Confidence: 60.0%
+2025-08-11 09:54:50,035 - __main__ - INFO - 📰 PAPER BUY: 2 COALINDIA at ₹377.25 - Confidence: 86.1%
+2025-08-11 09:54:50,179 - __main__ - INFO - 📰 PAPER SELL: 2 COALINDIA at ₹377.25
+2025-08-11 09:59:50,883 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 09:59:51,490 - __main__ - INFO - 📰 PAPER BUY: 1 SBIN at ₹820.75 - Confidence: 60.0%
+2025-08-11 09:59:51,880 - __main__ - WARNING - ⚠️  Insufficient paper cash for ITC: Need ₹832.30, Have ₹267.80
+2025-08-11 10:04:53,849 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 10:04:54,588 - __main__ - WARNING - ⚠️  Insufficient paper cash for ITC: Need ₹833.10, Have ₹267.80
+2025-08-11 10:09:57,508 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 10:09:59,222 - __main__ - WARNING - ⚠️  Insufficient paper shares for POWERGRID
+2025-08-11 10:09:59,821 - __main__ - INFO - 📰 PAPER SELL: 2 COALINDIA at ₹377.05
+2025-08-11 10:15:00,352 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 10:15:02,334 - __main__ - WARNING - ⚠️  Insufficient paper shares for POWERGRID
+2025-08-11 10:15:03,159 - __main__ - INFO - 📰 PAPER SELL: 2 COALINDIA at ₹377.00
+2025-08-11 10:20:03,694 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 10:20:10,710 - __main__ - ERROR - ❌ Failed to get instrument token for SBIN: HTTPSConnectionPool(host='api.kite.trade', port=443): Read timed out. (read timeout=7)
+2025-08-11 10:20:10,713 - __main__ - ERROR - ❌ Failed to get instrument token for ITC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c287d0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:20:10,715 - __main__ - ERROR - ❌ Failed to get instrument token for BHARTIARTL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c28410>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:20:10,716 - __main__ - ERROR - ❌ Failed to get instrument token for TATASTEEL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c28910>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:20:10,717 - __main__ - ERROR - ❌ Failed to get instrument token for WIPRO: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c28cd0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:20:10,719 - __main__ - ERROR - ❌ Failed to get instrument token for POWERGRID: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c29090>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:20:10,720 - __main__ - ERROR - ❌ Failed to get instrument token for ONGC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c29450>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:20:10,721 - __main__ - ERROR - ❌ Failed to get instrument token for COALINDIA: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c29810>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:20:10,723 - __main__ - ERROR - ❌ Failed to get instrument token for RELIANCE: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c29bd0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:20:10,725 - __main__ - ERROR - ❌ Failed to get instrument token for HDFCBANK: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c29f90>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,755 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 10:25:10,780 - __main__ - ERROR - ❌ Failed to get instrument token for SBIN: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2a350>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,785 - __main__ - ERROR - ❌ Failed to get instrument token for ITC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2a710>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,788 - __main__ - ERROR - ❌ Failed to get instrument token for BHARTIARTL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2aad0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,792 - __main__ - ERROR - ❌ Failed to get instrument token for TATASTEEL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2ae90>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,794 - __main__ - ERROR - ❌ Failed to get instrument token for WIPRO: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2b250>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,797 - __main__ - ERROR - ❌ Failed to get instrument token for POWERGRID: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2b610>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,800 - __main__ - ERROR - ❌ Failed to get instrument token for ONGC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2b9d0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,803 - __main__ - ERROR - ❌ Failed to get instrument token for COALINDIA: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2bd90>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,806 - __main__ - ERROR - ❌ Failed to get instrument token for RELIANCE: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1c190>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:25:10,807 - __main__ - ERROR - ❌ Failed to get instrument token for HDFCBANK: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1c550>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,842 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 10:30:10,849 - __main__ - ERROR - ❌ Failed to get instrument token for SBIN: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1c910>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,850 - __main__ - ERROR - ❌ Failed to get instrument token for ITC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1ccd0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,851 - __main__ - ERROR - ❌ Failed to get instrument token for BHARTIARTL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1d090>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,853 - __main__ - ERROR - ❌ Failed to get instrument token for TATASTEEL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1d450>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,854 - __main__ - ERROR - ❌ Failed to get instrument token for WIPRO: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1d810>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,855 - __main__ - ERROR - ❌ Failed to get instrument token for POWERGRID: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1dbd0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,856 - __main__ - ERROR - ❌ Failed to get instrument token for ONGC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1df90>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,858 - __main__ - ERROR - ❌ Failed to get instrument token for COALINDIA: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1e350>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,859 - __main__ - ERROR - ❌ Failed to get instrument token for RELIANCE: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1e710>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:30:10,860 - __main__ - ERROR - ❌ Failed to get instrument token for HDFCBANK: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1ead0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,895 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 10:35:10,904 - __main__ - ERROR - ❌ Failed to get instrument token for SBIN: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1ee90>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,907 - __main__ - ERROR - ❌ Failed to get instrument token for ITC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2bed0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,909 - __main__ - ERROR - ❌ Failed to get instrument token for BHARTIARTL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2bb10>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,912 - __main__ - ERROR - ❌ Failed to get instrument token for TATASTEEL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2b750>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,913 - __main__ - ERROR - ❌ Failed to get instrument token for WIPRO: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2b390>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,915 - __main__ - ERROR - ❌ Failed to get instrument token for POWERGRID: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2afd0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,917 - __main__ - ERROR - ❌ Failed to get instrument token for ONGC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2ac10>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,919 - __main__ - ERROR - ❌ Failed to get instrument token for COALINDIA: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2a850>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,923 - __main__ - ERROR - ❌ Failed to get instrument token for RELIANCE: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2a490>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:35:10,925 - __main__ - ERROR - ❌ Failed to get instrument token for HDFCBANK: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c2a0d0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,959 - __main__ - INFO - 🔍 Paper trading - Scanning markets...
+2025-08-11 10:40:10,972 - __main__ - ERROR - ❌ Failed to get instrument token for SBIN: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c29d10>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,976 - __main__ - ERROR - ❌ Failed to get instrument token for ITC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c29950>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,978 - __main__ - ERROR - ❌ Failed to get instrument token for BHARTIARTL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c29590>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,981 - __main__ - ERROR - ❌ Failed to get instrument token for TATASTEEL: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c291d0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,984 - __main__ - ERROR - ❌ Failed to get instrument token for WIPRO: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c28e10>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,987 - __main__ - ERROR - ❌ Failed to get instrument token for POWERGRID: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c28a50>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,990 - __main__ - ERROR - ❌ Failed to get instrument token for ONGC: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c282d0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,994 - __main__ - ERROR - ❌ Failed to get instrument token for COALINDIA: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c28690>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,996 - __main__ - ERROR - ❌ Failed to get instrument token for RELIANCE: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1ead0>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:10,998 - __main__ - ERROR - ❌ Failed to get instrument token for HDFCBANK: HTTPSConnectionPool(host='api.kite.trade', port=443): Max retries exceeded with url: /instruments/NSE (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x112c1e710>: Failed to resolve 'api.kite.trade' ([Errno 8] nodename nor servname provided, or not known)"))
+2025-08-11 10:40:39,336 - __main__ - INFO - 🛑 Paper trading stopped by user
+2025-08-11 10:40:39,337 - __main__ - INFO - 🛑 Trading bot stopped

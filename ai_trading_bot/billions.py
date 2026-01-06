@@ -23,7 +23,6 @@ import traceback
 from collections import defaultdict
 import os
 from dotenv import load_dotenv
-from typing import Dict
 
 # Load environment variables from .env file
 load_dotenv()
@@ -49,10 +48,6 @@ class TradingBot:
         self.last_scan_time = None
         self.daily_pnl = 0
         self.total_trades = 0
-        self.paper_trading = False
-        self.paper_portfolio = {}
-        self.paper_cash = self.config['capital']['total_capital']
-        self.ai_enabled = False
         
         # Initialize connections
         self.initialize_kite()
@@ -300,14 +295,14 @@ class TradingBot:
             buy_signal = (
                 current['rsi'] < strategy_config['rsi_oversold'] and
                 current['close'] < current['bb_lower'] and
-                current['volume_ratio'] > 0.3 and  # Relaxed volume requirement
+                current['volume_ratio'] > 1.2 and
                 prev['rsi'] >= current['rsi']  # RSI declining
             )
             
             sell_signal = (
                 current['rsi'] > strategy_config['rsi_overbought'] and
                 current['close'] > current['bb_upper'] and
-                current['volume_ratio'] > 0.3 and  # Relaxed volume requirement
+                current['volume_ratio'] > 1.2 and
                 prev['rsi'] <= current['rsi']  # RSI rising
             )
             
@@ -390,11 +385,8 @@ class TradingBot:
             min_trade_amount = capital_config['min_trade_amount']
             
             # Get available cash
-            if hasattr(self, 'paper_trading') and self.paper_trading:
-                available_cash = self.paper_cash
-            else:
-                margins = self.kite.margins()
-                available_cash = margins['equity']['available']['cash']
+            margins = self.kite.margins()
+            available_cash = margins['equity']['available']['cash']
             
             # Calculate base position size
             max_investment = min(
@@ -790,305 +782,6 @@ Max Position Size: {self.config['capital']['max_position_size']*100}%
         
         if self.config['notifications']['send_trade_alerts']:
             self.send_telegram_message_sync(shutdown_message)
-    
-    def paper_trading_mode(self):
-        """Run bot in paper trading mode - no real money"""
-        try:
-            self.logger.info("📰 Starting PAPER TRADING MODE")
-            self.paper_trading = True
-            self.is_trading = True
-            
-            # Initialize paper portfolio
-            self.paper_portfolio = {}
-            self.paper_cash = self.config['capital']['total_capital']
-            
-            self.logger.info(f"💰 Paper trading capital: ₹{self.paper_cash:,.2f}")
-            
-            # Send startup notification
-            startup_message = f"""
-📰 PAPER TRADING MODE STARTED
-{'='*30}
-💰 Virtual Capital: ₹{self.paper_cash:,.2f}
-🎯 Active Strategies: {sum(1 for s in self.config['strategies'].values() if s['active'])}
-⏰ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-🔔 Note: This is PAPER TRADING - No real money involved!
-            """
-            
-            if self.config['notifications']['send_trade_alerts']:
-                self.send_telegram_message_sync(startup_message)
-            
-            print(startup_message)
-            
-            # Schedule paper trading tasks
-            schedule.every(5).minutes.do(self.paper_scan_and_trade)
-            schedule.every().day.at("18:00").do(self.generate_paper_trading_report)
-            
-            # Main paper trading loop
-            while self.is_trading:
-                schedule.run_pending()
-                time.sleep(60)  # Check every minute
-                
-        except KeyboardInterrupt:
-            self.logger.info("🛑 Paper trading stopped by user")
-            self.stop_trading()
-        except Exception as e:
-            self.logger.error(f"❌ Paper trading error: {e}")
-            traceback.print_exc()
-    
-    def paper_scan_and_trade(self):
-        """Paper trading version of scan_and_trade"""
-        try:
-            if not self.is_market_open():
-                return
-            
-            self.logger.info("🔍 Paper trading - Scanning markets...")
-            
-            # Scan for opportunities (same logic but paper execution)
-            trading_symbols = self.config['trading_symbols']
-            
-            for symbol in trading_symbols:
-                try:
-                    # Get market data
-                    df = self.get_market_data(symbol)
-                    if df is None or len(df) < 50:
-                        continue
-                    
-                    # Calculate indicators
-                    df = self.calculate_technical_indicators(df)
-                    
-                    # Generate signals
-                    signals = []
-                    
-                    if self.config['strategies']['mean_reversion']['active']:
-                        signal = self.mean_reversion_strategy(symbol, df)
-                        if signal:
-                            signals.append(signal)
-                    
-                    if self.config['strategies']['momentum']['active']:
-                        signal = self.momentum_strategy(symbol, df)
-                        if signal:
-                            signals.append(signal)
-                    
-                    # Process signals for paper trading
-                    for signal in signals:
-                        current_price = self.get_ltp(symbol)
-                        if not current_price:
-                            continue
-                        
-                        quantity = self.calculate_position_size(symbol, signal, current_price)
-                        if quantity > 0:
-                            self.paper_place_order(symbol, signal['action'], quantity, current_price, signal)
-                
-                except Exception as e:
-                    self.logger.error(f"❌ Error processing {symbol} in paper trading: {e}")
-                    continue
-            
-            self.last_scan_time = datetime.now()
-            
-        except Exception as e:
-            self.logger.error(f"❌ Paper scan and trade failed: {e}")
-    
-    def paper_place_order(self, symbol: str, action: str, quantity: int, 
-                         price: float, signal: Dict):
-        """Simulate order placement for paper trading"""
-        try:
-            trade_value = quantity * price
-            
-            if action == 'BUY':
-                if trade_value > self.paper_cash:
-                    self.logger.warning(f"⚠️  Insufficient paper cash for {symbol}: Need ₹{trade_value:,.2f}, Have ₹{self.paper_cash:,.2f}")
-                    return None
-                
-                # Execute paper buy
-                self.paper_cash -= trade_value
-                
-                if symbol in self.paper_portfolio:
-                    # Add to existing position
-                    old_qty = self.paper_portfolio[symbol]['quantity']
-                    old_value = self.paper_portfolio[symbol]['total_invested']
-                    new_qty = old_qty + quantity
-                    new_value = old_value + trade_value
-                    
-                    self.paper_portfolio[symbol] = {
-                        'quantity': new_qty,
-                        'average_price': new_value / new_qty,
-                        'total_invested': new_value,
-                        'last_price': price
-                    }
-                else:
-                    # New position
-                    self.paper_portfolio[symbol] = {
-                        'quantity': quantity,
-                        'average_price': price,
-                        'total_invested': trade_value,
-                        'last_price': price
-                    }
-                
-                self.logger.info(f"📰 PAPER BUY: {quantity} {symbol} at ₹{price:.2f} - Confidence: {signal.get('confidence', 0):.1f}%")
-                
-            elif action == 'SELL':
-                if symbol not in self.paper_portfolio or self.paper_portfolio[symbol]['quantity'] < quantity:
-                    self.logger.warning(f"⚠️  Insufficient paper shares for {symbol}")
-                    return None
-                
-                # Execute paper sell
-                self.paper_cash += trade_value
-                
-                position = self.paper_portfolio[symbol]
-                position['quantity'] -= quantity
-                position['total_invested'] -= (position['average_price'] * quantity)
-                
-                if position['quantity'] == 0:
-                    del self.paper_portfolio[symbol]
-                
-                self.logger.info(f"📰 PAPER SELL: {quantity} {symbol} at ₹{price:.2f}")
-            
-            # Send notification
-            if self.config['notifications']['send_trade_alerts']:
-                message = f"📰 PAPER TRADE\n{action} {quantity} {symbol}\nPrice: ₹{price:,.2f}\nStrategy: {signal.get('strategy', 'Unknown')}\nConfidence: {signal.get('confidence', 0):.1f}%"
-                self.send_telegram_message_sync(message)
-            
-            return f"PAPER_{symbol}_{action}_{datetime.now().timestamp()}"
-            
-        except Exception as e:
-            self.logger.error(f"❌ Paper order failed for {symbol}: {e}")
-            return None
-    
-    def generate_paper_trading_report(self):
-        """Generate paper trading performance report"""
-        try:
-            total_portfolio_value = self.paper_cash
-            total_invested = 0
-            positions_count = len(self.paper_portfolio)
-            
-            # Calculate portfolio value
-            for symbol, position in self.paper_portfolio.items():
-                current_price = self.get_ltp(symbol)
-                if current_price:
-                    position['last_price'] = current_price
-                    market_value = position['quantity'] * current_price
-                    total_portfolio_value += market_value
-                    total_invested += position['total_invested']
-            
-            # Calculate returns
-            initial_capital = self.config['capital']['total_capital']
-            total_return = ((total_portfolio_value - initial_capital) / initial_capital) * 100
-            
-            report = f"""
-📰 PAPER TRADING REPORT - {datetime.now().strftime('%Y-%m-%d')}
-{'='*45}
-
-💰 PORTFOLIO SUMMARY
-Initial Capital: ₹{initial_capital:,.2f}
-Current Value: ₹{total_portfolio_value:,.2f}
-Cash Available: ₹{self.paper_cash:,.2f}
-Total Return: {total_return:+.2f}%
-Active Positions: {positions_count}
-
-📊 POSITIONS
-"""
-            
-            for symbol, position in self.paper_portfolio.items():
-                market_value = position['quantity'] * position['last_price']
-                pnl = market_value - position['total_invested']
-                pnl_pct = (pnl / position['total_invested']) * 100
-                
-                report += f"{symbol}: {position['quantity']} @ ₹{position['average_price']:.2f} "
-                report += f"(Current: ₹{position['last_price']:.2f}, P&L: {pnl_pct:+.1f}%)\n"
-            
-            report += f"""
-🎯 STRATEGY PERFORMANCE
-Paper trades executed: {self.total_trades}
-Last scan: {self.last_scan_time.strftime('%H:%M:%S') if self.last_scan_time else 'Never'}
-
-📝 Note: This is PAPER TRADING - No real money involved!
-"""
-            
-            self.logger.info("📰 Paper trading report generated")
-            
-            if self.config['notifications']['send_daily_report']:
-                self.send_telegram_message_sync(report)
-            
-        except Exception as e:
-            self.logger.error(f"❌ Paper trading report failed: {e}")
-    
-    def ai_test_mode(self):
-        """Test AI components integration"""
-        try:
-            self.logger.info("🤖 Starting AI TEST MODE")
-            
-            # Try to import and initialize AI components
-            try:
-                import sys
-                sys.path.append('ai_trading_bot')
-                
-                from ai_trading_orchestrator import AITradingOrchestrator
-                
-                self.ai_orchestrator = AITradingOrchestrator('config.json')
-                self.ai_enabled = True
-                
-                self.logger.info("✅ AI Orchestrator initialized successfully")
-                
-                # Test AI stock screening
-                self.logger.info("🔍 Testing AI stock screening...")
-                ai_signals = self.ai_orchestrator.get_trading_signals()
-                
-                self.logger.info(f"🎯 AI Signals Generated:")
-                self.logger.info(f"  - Buy signals: {len(ai_signals.get('buy_signals', []))}")
-                self.logger.info(f"  - Sell signals: {len(ai_signals.get('sell_signals', []))}")
-                
-                # Display top AI recommendations
-                for i, signal in enumerate(ai_signals.get('buy_signals', [])[:3], 1):
-                    self.logger.info(f"  {i}. BUY {signal['symbol']} - Confidence: {signal['confidence']:.1f}%")
-                
-                # Test individual AI components
-                self.logger.info("🧪 Testing individual AI components...")
-                
-                # Test AI engine
-                from ai_trading_engine import AITradingEngine
-                ai_engine = AITradingEngine()
-                self.logger.info("✅ AI Trading Engine: OK")
-                
-                # Test screener
-                from dynamic_stock_screener import DynamicStockScreener
-                screener = DynamicStockScreener()
-                self.logger.info("✅ Dynamic Stock Screener: OK")
-                
-                # Test portfolio manager
-                from ai_portfolio_manager import AIPortfolioManager
-                portfolio_mgr = AIPortfolioManager()
-                self.logger.info("✅ AI Portfolio Manager: OK")
-                
-                self.logger.info("🎉 All AI components are working correctly!")
-                
-                # Send AI test notification
-                if self.telegram_bot:
-                    message = f"""
-🤖 AI SYSTEM TEST COMPLETED
-{'='*25}
-✅ AI Orchestrator: Working
-✅ Trading Engine: Working  
-✅ Stock Screener: Working
-✅ Portfolio Manager: Working
-
-🎯 Generated {len(ai_signals.get('buy_signals', []))} buy signals
-📊 System ready for AI-enhanced trading!
-                    """
-                    self.send_telegram_message_sync(message)
-                
-            except ImportError as e:
-                self.logger.error(f"❌ AI components not available: {e}")
-                self.logger.info("💡 Please run the AI system setup first")
-                
-            except Exception as e:
-                self.logger.error(f"❌ AI test failed: {e}")
-                traceback.print_exc()
-            
-            self.logger.info("✅ AI test mode completed")
-            
-        except Exception as e:
-            self.logger.error(f"❌ AI test mode failed: {e}")
-            traceback.print_exc()
 
 def main():
     """Main entry point"""
@@ -1096,8 +789,8 @@ def main():
     
     parser = argparse.ArgumentParser(description='Billions Trading Bot')
     parser.add_argument('mode', nargs='?', default='trade', 
-                       choices=['trade', 'test', 'paper', 'ai-test'], 
-                       help='Run mode: trade, test, paper, or ai-test')
+                       choices=['trade', 'test'], 
+                       help='Run mode: trade or test')
     
     args = parser.parse_args()
     
@@ -1106,15 +799,8 @@ def main():
         
         if args.mode == 'test':
             bot.test_mode()
-        elif args.mode == 'paper':
-            bot.paper_trading_mode()
-        elif args.mode == 'ai-test':
-            bot.ai_test_mode()
-        elif args.mode == 'trade':
-            bot.start_trading()
         else:
-            print(f"Unknown mode: {args.mode}")
-            print("Use: python billions.py {trade|test|paper|ai-test}")
+            bot.start_trading()
             
     except Exception as e:
         print(f"❌ Failed to start trading bot: {e}")

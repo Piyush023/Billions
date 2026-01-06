@@ -1,0 +1,50 @@
+# AI/ML Dependencies for Enhanced Trading Bot
+# Add these to your existing requirements.txt
+
+# Core Machine Learning
+scikit-learn==1.5.2
+tensorflow==2.17.0
+keras==3.6.0
+xgboost==2.1.2
+lightgbm==4.5.0
+
+# Data Processing & Analysis
+scipy==1.14.1
+statsmodels==0.14.3
+plotly==5.24.1
+seaborn==0.13.2
+matplotlib==3.9.2
+
+# Feature Engineering
+feature-engine==1.8.1
+imbalanced-learn==0.12.4
+optuna==4.1.0
+
+# Financial Data & Analysis
+quantlib==1.36.0
+arch==7.1.0
+pyfolio-reloaded==0.9.9
+empyrical==0.5.7
+
+# Advanced Data Sources
+alpha-vantage==2.3.1
+nsetools==1.0.11
+yahoofinancials==1.20
+
+# Memory & Performance
+joblib==1.4.2
+dask==2024.11.2
+numba==0.60.0
+
+# Visualization & Monitoring
+dash==2.18.2
+dash-bootstrap-components==1.6.0
+flask==3.1.0
+
+# Model Persistence
+pickle5==0.0.12
+cloudpickle==3.1.0
+
+# Real-time Processing
+redis==5.2.0
+celery==5.4.0

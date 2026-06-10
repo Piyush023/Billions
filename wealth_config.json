@@ -1,0 +1,19 @@
+{
+  "broker": "paper",
+  "trading_mode": "positional",
+  "capital": 15000,
+  "max_stocks_per_cycle": 3,
+  "debate_rounds": 1,
+  "stop_loss_pct": 7.0,
+  "take_profit_pct": 14.0,
+  "ipo_enabled": true,
+  "watchlist": ["RELIANCE", "HDFCBANK", "TCS", "INFY", "ICICIBANK"],
+  "mutual_funds": {
+    "monthly_sip_budget": 2000,
+    "risk_profile": "moderate"
+  },
+  "_notes": {
+    "broker": "paper | zerodha | groww. Always starts in paper. Switch to groww (free API) only after paper trading proves profitable.",
+    "credentials": "NO secrets in this file. All keys go in .env / environment variables — see docs/DEPENDENCIES_NEEDED.md"
+  }
+}

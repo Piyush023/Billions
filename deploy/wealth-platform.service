@@ -1,0 +1,16 @@
+[Unit]
+Description=AI Wealth Platform (FastAPI + scheduler)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Billions
+ExecStart=/home/ubuntu/Billions/.venv/bin/uvicorn wealth_platform.server:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+# .env is auto-loaded by the app from WorkingDirectory
+
+[Install]
+WantedBy=multi-user.target

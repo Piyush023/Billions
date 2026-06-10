@@ -1,0 +1,25 @@
+# AI Wealth Platform — free-tier stack
+# Install: pip install -r requirements_platform.txt
+
+# Core
+requests>=2.31
+pandas>=2.0
+numpy>=1.24
+yfinance>=0.2.40
+
+# Platform server
+fastapi>=0.110
+uvicorn[standard]>=0.29
+apscheduler>=3.10
+
+# Mutual funds (free AMFI NAV data)
+mftool>=2.9
+
+# Brokers (install only the ones you use)
+# kiteconnect>=5.0      # Zerodha — paid API (Rs.500/month); optional
+growwapi                 # Groww — free trading API
+pyotp>=2.9               # TOTP for Groww auth
+
+# Telegram notifications use plain requests — no extra package needed.
+# LLM providers (Groq/Gemini/Ollama/Anthropic) are called over HTTP via
+# requests — no SDKs required.

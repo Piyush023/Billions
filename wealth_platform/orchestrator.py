@@ -100,7 +100,10 @@ class WealthOrchestrator:
     def select_symbols(self) -> List[str]:
         """Use the existing dynamic screener when available; fall back to config list."""
         try:
-            from dynamic_stock_screener import DynamicStockScreener
+            try:
+                from legacy_bot.dynamic_stock_screener import DynamicStockScreener
+            except ImportError:
+                from dynamic_stock_screener import DynamicStockScreener
 
             screener = DynamicStockScreener()
             results = screener.quick_screen()

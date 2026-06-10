@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Wealth Platform</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #e6edf3;
+    --muted: #8b949e; --green: #3fb950; --red: #f85149; --blue: #58a6ff; --amber: #d29922;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 16px; }
+  h1 { font-size: 20px; margin-bottom: 16px; }
+  h2 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .stat-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
+  .green { color: var(--green); } .red { color: var(--red); } .blue { color: var(--blue); } .amber { color: var(--amber); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 8px; border-bottom: 1px solid #21262d; }
+  button { background: #238636; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px; cursor: pointer; }
+  button:hover { background: #2ea043; }
+  button.secondary { background: #21262d; border: 1px solid var(--border); }
+  .pipeline { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .stage { padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .stage.active { border-color: var(--blue); color: var(--blue); animation: pulse 1.2s infinite; }
+  .stage.done { border-color: var(--green); color: var(--green); }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+  #feed { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+  .event { border-left: 3px solid var(--border); padding: 8px 12px; margin-bottom: 8px; font-size: 13px; }
+  .event .meta { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .event.agent_report { border-color: var(--blue); }
+  .event.trade_executed { border-color: var(--green); }
+  .event.pm_decision { border-color: var(--amber); }
+  .event.exit { border-color: var(--red); }
+  .event pre { white-space: pre-wrap; font-family: inherit; max-height: 160px; overflow-y: auto; color: var(--text); }
+  #eod { white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
+  .full { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<h1>🏦 AI Wealth Platform <span id="broker" class="blue" style="font-size:13px"></span></h1>
+
+<div class="stat-row">
+  <div class="stat"><div class="label">Total Value</div><div class="value" id="total">—</div></div>
+  <div class="stat"><div class="label">Cash</div><div class="value" id="cash">—</div></div>
+  <div class="stat"><div class="label">Equity</div><div class="value" id="equity">—</div></div>
+  <div class="stat"><div class="label">Mutual Funds</div><div class="value" id="mf">—</div></div>
+  <div class="stat">
+    <div class="label">Actions</div>
+    <div style="margin-top:6px; display:flex; gap:8px;">
+      <button onclick="runCycle()">▶ Run Cycle</button>
+      <button class="secondary" onclick="runEod()">EOD Report</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel full" style="margin-bottom:16px;">
+  <h2>Decision Pipeline <span id="cycle-symbol" class="blue"></span></h2>
+  <div class="pipeline" id="pipeline">
+    <span class="stage" data-stage="analysts">1 · Analysts</span>
+    <span class="stage" data-stage="debate">2 · Bull/Bear Debate</span>
+    <span class="stage" data-stage="trader">3 · Trader</span>
+    <span class="stage" data-stage="risk_debate">4 · Risk Debate</span>
+    <span class="stage" data-stage="portfolio_manager">5 · Portfolio Manager</span>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Live Agent Feed</h2>
+    <div id="feed"></div>
+  </div>
+  <div class="panel">
+    <h2>Positions</h2>
+    <table id="positions"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>LTP</th><th>P&L</th></tr></thead><tbody></tbody></table>
+    <h2 style="margin-top:20px;">Recent Trades</h2>
+    <table id="trades"><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="panel">
+    <h2>Decisions</h2>
+    <table id="decisions"><thead><tr><th>Symbol</th><th>Rating</th><th>PM</th><th>Time</th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="panel">
+    <h2>End-of-Day Report</h2>
+    <div id="eod">Loading…</div>
+  </div>
+</div>
+
+<script>
+const rupee = v => '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits: 0});
+
+async function refresh() {
+  try {
+    const p = await (await fetch('/api/portfolio')).json();
+    document.getElementById('broker').textContent = '(' + p.broker + ' mode)';
+    document.getElementById('total').textContent = rupee(p.total_value);
+    document.getElementById('cash').textContent = rupee(p.cash);
+    document.getElementById('equity').textContent = rupee(p.equity_value);
+    document.getElementById('mf').textContent = rupee(p.mutual_funds.total_value || 0);
+    const ptb = document.querySelector('#positions tbody');
+    ptb.innerHTML = Object.entries(p.positions).map(([s, x]) =>
+      `<tr><td>${s}</td><td>${x.quantity}</td><td>${x.avg_price.toFixed(1)}</td><td>${x.last_price.toFixed(1)}</td>
+       <td class="${x.pnl >= 0 ? 'green' : 'red'}">${x.pnl.toFixed(0)}</td></tr>`).join('') ||
+      '<tr><td colspan="5" style="color:var(--muted)">No open positions</td></tr>';
+
+    const trades = await (await fetch('/api/trades')).json();
+    document.querySelector('#trades tbody').innerHTML = trades.slice(0, 8).map(t =>
+      `<tr><td>${t.created_at.slice(5, 16)}</td><td>${t.symbol}</td>
+       <td class="${t.side === 'BUY' ? 'green' : 'red'}">${t.side}</td><td>${t.quantity}</td>
+       <td>${(t.price || 0).toFixed(1)}</td><td>${t.status}</td></tr>`).join('') ||
+      '<tr><td colspan="6" style="color:var(--muted)">No trades yet</td></tr>';
+
+    const decisions = await (await fetch('/api/decisions')).json();
+    document.querySelector('#decisions tbody').innerHTML = decisions.slice(0, 10).map(d => {
+      const pm = JSON.parse(d.pm_decision || '{}');
+      return `<tr><td>${d.symbol}</td><td>${d.research_rating || ''}</td>
+        <td class="${d.approved ? 'green' : 'amber'}">${pm.decision || ''}</td>
+        <td>${d.created_at.slice(5, 16)}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:var(--muted)">No decisions yet</td></tr>';
+
+    const eod = await (await fetch('/api/eod')).json();
+    document.getElementById('eod').textContent = eod.report || 'No EOD report yet.';
+  } catch (e) { console.error(e); }
+}
+
+function addEvent(ev) {
+  const feed = document.getElementById('feed');
+  const div = document.createElement('div');
+  div.className = 'event ' + ev.type;
+  let body = '';
+  if (ev.type === 'agent_report') body = `<b>${ev.role}</b> on ${ev.symbol} <span style="color:var(--muted)">(${ev.provider})</span><pre>${ev.report}</pre>`;
+  else if (ev.type === 'stage') { setStage(ev.stage, ev.symbol); body = `<b>${ev.symbol}</b> → stage: ${ev.stage}`; }
+  else if (ev.type === 'pm_decision') body = `<b>PM ${ev.approved ? '✅ APPROVED' : '❌ REJECTED'}</b> ${ev.symbol}<pre>${ev.decision.reasoning || ''}</pre>`;
+  else if (ev.type === 'trade_executed') body = `<b class="green">TRADE</b> ${ev.side} ${ev.quantity} ${ev.symbol} — ${ev.success ? 'filled' : 'FAILED: ' + ev.message}`;
+  else if (ev.type === 'trade_proposal') body = `<b>Proposal</b> ${ev.symbol}: ${ev.proposal.action} ${ev.proposal.quantity || ''} @ ${ev.proposal.entry_price || 'mkt'}`;
+  else if (ev.type === 'research_verdict') body = `<b>Research</b> ${ev.symbol}: ${ev.verdict.rating} (${ev.verdict.confidence}%)`;
+  else if (ev.type === 'exit') body = `<b class="red">EXIT</b> ${ev.symbol}: ${ev.reason} (${ev.pnl_pct}%)`;
+  else if (ev.type === 'ipo_analysis') body = `<b>IPO</b> ${ev.ipo?.company || ''}: ${ev.recommendation} (${ev.confidence}%)<pre>${ev.reasoning || ''}</pre>`;
+  else if (ev.type === 'eod_report') { body = `<b>EOD report ready</b>`; refresh(); }
+  else if (ev.type === 'cycle_started') { resetStages(); body = `<b>Cycle #${ev.cycle_id} started</b>: ${(ev.symbols || []).join(', ')}`; }
+  else if (ev.type === 'cycle_finished') { body = `<b>Cycle #${ev.cycle_id} finished</b>`; refresh(); }
+  else body = JSON.stringify(ev);
+  div.innerHTML = `<div class="meta">${(ev.time || '').slice(11, 19)}</div>${body}`;
+  feed.prepend(div);
+  while (feed.children.length > 60) feed.removeChild(feed.lastChild);
+}
+
+function setStage(stage, symbol) {
+  document.getElementById('cycle-symbol').textContent = '— ' + symbol;
+  let reached = false;
+  document.querySelectorAll('.stage').forEach(el => {
+    if (el.dataset.stage === stage) { el.className = 'stage active'; reached = true; }
+    else el.className = 'stage' + (reached ? '' : ' done');
+  });
+}
+function resetStages() { document.querySelectorAll('.stage').forEach(el => el.className = 'stage'); }
+
+async function runCycle() {
+  const r = await fetch('/api/run-cycle', {method: 'POST'});
+  if (r.status === 409) alert('A cycle is already running.');
+}
+async function runEod() { await fetch('/api/run-eod', {method: 'POST'}); }
+
+function connectWs() {
+  const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.onmessage = e => addEvent(JSON.parse(e.data));
+  ws.onclose = () => setTimeout(connectWs, 3000);
+}
+
+connectWs();
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

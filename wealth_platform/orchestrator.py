@@ -58,6 +58,11 @@ class WealthOrchestrator:
         self.ipo_manager = IPOManager(self.llm)
         self.notifier = Notifier()
         self.history_rag = TradeHistoryRAG(self.storage)
+        from wealth_platform.screener import BuiltInScreener
+
+        self.screener = BuiltInScreener()
+        self._analyzed_on: Optional[str] = None  # date string
+        self._analyzed_today: set = set()
         self._current_cycle_id: Optional[int] = None
         self._current_symbol: str = ""
 
@@ -98,22 +103,33 @@ class WealthOrchestrator:
     # ------------------------------------------------------------------
 
     def select_symbols(self) -> List[str]:
-        """Use the existing dynamic screener when available; fall back to config list."""
-        try:
-            try:
-                from legacy_bot.dynamic_stock_screener import DynamicStockScreener
-            except ImportError:
-                from dynamic_stock_screener import DynamicStockScreener
+        """Pick the next batch from the screener ranking, rotating through the
+        day: stocks already analyzed today are skipped so consecutive cycles
+        cover different parts of the market instead of repeating the same 3."""
+        from datetime import date as _date
 
-            screener = DynamicStockScreener()
-            results = screener.quick_screen()
-            if results:
-                top = [r["symbol"].replace(".NS", "") for r in results[: self.config.get("max_stocks_per_cycle", 3)]]
-                logger.info("Screener selected: %s", top)
-                return top
+        today = str(_date.today())
+        if self._analyzed_on != today:
+            self._analyzed_on = today
+            self._analyzed_today = set()
+
+        n = self.config.get("max_stocks_per_cycle", 3)
+        ranked: List[str] = []
+        try:
+            ranked = self.screener.ranked_symbols(top_n=40)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Screener unavailable (%s); using config watchlist", exc)
-        return self.config.get("watchlist", ["RELIANCE", "HDFCBANK", "TCS"])[: self.config.get("max_stocks_per_cycle", 3)]
+            logger.warning("Built-in screener failed (%s)", exc)
+        if not ranked:
+            ranked = self.config.get("watchlist", ["RELIANCE", "HDFCBANK", "TCS"])
+
+        fresh = [s for s in ranked if s not in self._analyzed_today]
+        if not fresh:  # whole ranking covered today — start over
+            self._analyzed_today = set()
+            fresh = ranked
+        batch = fresh[:n]
+        self._analyzed_today.update(batch)
+        logger.info("Cycle batch: %s (analyzed today: %d)", batch, len(self._analyzed_today))
+        return batch
 
     # ------------------------------------------------------------------
     # The full decision cycle for one stock

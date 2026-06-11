@@ -73,16 +73,34 @@ def run_cycle_blocking():
         cycle_lock.release()
 
 
-scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
-scheduler.add_job(run_cycle_blocking, CronTrigger(day_of_week="mon-fri", hour=8, minute=45), id="daily_cycle")
+# IMPORTANT: timezone must be set on each CronTrigger explicitly. A standalone
+# CronTrigger ignores the scheduler-level timezone and falls back to the
+# machine's local zone (UTC on cloud servers) — which silently shifted every
+# job by 5.5 hours on the first deployment.
+IST = "Asia/Kolkata"
+scheduler = BackgroundScheduler(timezone=IST)
+scheduler.add_job(
+    run_cycle_blocking,
+    CronTrigger(day_of_week="mon-fri", hour=8, minute=45, timezone=IST),
+    id="premarket_cycle",
+)
+if orchestrator.config.get("continuous_cycles", True):
+    # Re-run the full decision cycle through the trading day, hourly at :15
+    # (09:15 ... 14:15 IST). The cycle lock prevents overlap; stock rotation
+    # in select_symbols() makes each cycle cover different stocks.
+    scheduler.add_job(
+        run_cycle_blocking,
+        CronTrigger(day_of_week="mon-fri", hour="9-14", minute=15, timezone=IST),
+        id="intraday_cycles",
+    )
 scheduler.add_job(
     orchestrator.manage_exits,
-    CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*/5"),
+    CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*/5", timezone=IST),
     id="exit_management",
 )
 scheduler.add_job(
     orchestrator.generate_eod_report,
-    CronTrigger(day_of_week="mon-fri", hour=15, minute=35),
+    CronTrigger(day_of_week="mon-fri", hour=15, minute=35, timezone=IST),
     id="eod_report",
 )
 
@@ -91,7 +109,8 @@ scheduler.add_job(
 async def lifespan(app: FastAPI):
     bus.loop = asyncio.get_running_loop()
     scheduler.start()
-    logger.info("Scheduler started (daily cycle 08:45 IST, exits */5min, EOD 15:35 IST)")
+    for job in scheduler.get_jobs():
+        logger.info("Scheduled job %s — next run: %s", job.id, job.next_run_time)
     yield
     scheduler.shutdown(wait=False)
 

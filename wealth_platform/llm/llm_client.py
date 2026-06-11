@@ -56,7 +56,7 @@ class LLMClient:
     use_ollama: bool = field(default_factory=lambda: os.getenv("USE_OLLAMA", "0") == "1")
     max_retries: int = 2
     request_timeout: int = 90
-    rate_limit_sweeps: int = 4  # total passes over all providers when rate limited
+    rate_limit_sweeps: int = 8  # total passes over all providers when rate limited
     rate_limit_wait_s: int = 30  # free-tier limits are per-minute; 30s is a safe reset wait
 
     def chat(

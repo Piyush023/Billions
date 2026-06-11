@@ -27,11 +27,15 @@ import requests
 logger = logging.getLogger("wealth_platform.llm")
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 OLLAMA_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434") + "/api/chat"
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+DEFAULT_CEREBRAS_MODEL = os.getenv("CEREBRAS_MODEL", "llama-3.3-70b")
+DEFAULT_OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 DEFAULT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
@@ -51,6 +55,8 @@ class LLMClient:
     """Routes chat completions across free providers with fallback."""
 
     groq_api_key: Optional[str] = field(default_factory=lambda: os.getenv("GROQ_API_KEY"))
+    cerebras_api_key: Optional[str] = field(default_factory=lambda: os.getenv("CEREBRAS_API_KEY"))
+    openrouter_api_key: Optional[str] = field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY"))
     gemini_api_key: Optional[str] = field(default_factory=lambda: os.getenv("GEMINI_API_KEY"))
     anthropic_api_key: Optional[str] = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY"))
     use_ollama: bool = field(default_factory=lambda: os.getenv("USE_OLLAMA", "0") == "1")
@@ -133,14 +139,15 @@ class LLMClient:
     # Provider implementations
     # ------------------------------------------------------------------
 
-    def _call_groq(self, system: str, user: str, temperature: float, max_tokens: int) -> str:
-        if not self.groq_api_key:
-            raise ProviderUnavailable("GROQ_API_KEY not set")
+    def _call_openai_compatible(self, url: str, api_key: Optional[str], model: str, provider: str,
+                                system: str, user: str, temperature: float, max_tokens: int) -> str:
+        if not api_key:
+            raise ProviderUnavailable(f"{provider} key not set")
         resp = requests.post(
-            GROQ_URL,
-            headers={"Authorization": f"Bearer {self.groq_api_key}"},
+            url,
+            headers={"Authorization": f"Bearer {api_key}"},
             json={
-                "model": DEFAULT_GROQ_MODEL,
+                "model": model,
                 "messages": [
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
@@ -151,9 +158,21 @@ class LLMClient:
             timeout=self.request_timeout,
         )
         if resp.status_code == 429:
-            raise RateLimitError("groq rate limited")
+            raise RateLimitError(f"{provider} rate limited")
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]["content"]
+
+    def _call_groq(self, system: str, user: str, temperature: float, max_tokens: int) -> str:
+        return self._call_openai_compatible(
+            GROQ_URL, self.groq_api_key, DEFAULT_GROQ_MODEL, "groq", system, user, temperature, max_tokens)
+
+    def _call_cerebras(self, system: str, user: str, temperature: float, max_tokens: int) -> str:
+        return self._call_openai_compatible(
+            CEREBRAS_URL, self.cerebras_api_key, DEFAULT_CEREBRAS_MODEL, "cerebras", system, user, temperature, max_tokens)
+
+    def _call_openrouter(self, system: str, user: str, temperature: float, max_tokens: int) -> str:
+        return self._call_openai_compatible(
+            OPENROUTER_URL, self.openrouter_api_key, DEFAULT_OPENROUTER_MODEL, "openrouter", system, user, temperature, max_tokens)
 
     def _call_gemini(self, system: str, user: str, temperature: float, max_tokens: int) -> str:
         if not self.gemini_api_key:
@@ -226,8 +245,12 @@ class LLMClient:
             order.append("anthropic")
         if self.groq_api_key:
             order.append("groq")
+        if self.cerebras_api_key:
+            order.append("cerebras")
         if self.gemini_api_key:
             order.append("gemini")
+        if self.openrouter_api_key:
+            order.append("openrouter")
         if self.use_ollama:
             order.append("ollama")
         if not order:
@@ -241,6 +264,8 @@ class LLMClient:
     def _model_for(provider: str) -> str:
         return {
             "groq": DEFAULT_GROQ_MODEL,
+            "cerebras": DEFAULT_CEREBRAS_MODEL,
+            "openrouter": DEFAULT_OPENROUTER_MODEL,
             "gemini": DEFAULT_GEMINI_MODEL,
             "ollama": DEFAULT_OLLAMA_MODEL,
             "anthropic": DEFAULT_ANTHROPIC_MODEL,
@@ -257,6 +282,8 @@ class RateLimitError(Exception):
 
 provider_dispatch = {
     "groq": LLMClient._call_groq,
+    "cerebras": LLMClient._call_cerebras,
+    "openrouter": LLMClient._call_openrouter,
     "gemini": LLMClient._call_gemini,
     "ollama": LLMClient._call_ollama,
     "anthropic": LLMClient._call_anthropic,

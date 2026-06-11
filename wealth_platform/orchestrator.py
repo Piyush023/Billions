@@ -168,9 +168,14 @@ class WealthOrchestrator:
         news = NewsAnalyst(self.llm, cb).analyze(symbol)
         sentiment = SentimentAnalyst(self.llm, cb).analyze(symbol, news.report, technical.report)
 
+        # Cap each report in the combined context: it gets re-sent to the
+        # debate (twice per round), research manager, trader, and PM — on
+        # free tiers with daily TOKEN caps, uncapped reports burn the whole
+        # day's budget in one or two cycles.
+        cap = self.config.get("report_context_chars", 1800)
         analyst_reports = (
-            f"=== TECHNICAL ===\n{technical.report}\n\n=== FUNDAMENTALS ===\n{fundamentals.report}\n\n"
-            f"=== NEWS ===\n{news.report}\n\n=== SENTIMENT ===\n{sentiment.report}"
+            f"=== TECHNICAL ===\n{technical.report[:cap]}\n\n=== FUNDAMENTALS ===\n{fundamentals.report[:cap]}\n\n"
+            f"=== NEWS ===\n{news.report[:cap]}\n\n=== SENTIMENT ===\n{sentiment.report[:cap]}"
         )
 
         self._emit("stage", {"symbol": symbol, "stage": "debate"})

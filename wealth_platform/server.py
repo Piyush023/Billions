@@ -84,15 +84,30 @@ scheduler.add_job(
     CronTrigger(day_of_week="mon-fri", hour=8, minute=45, timezone=IST),
     id="premarket_cycle",
 )
-if orchestrator.config.get("continuous_cycles", True):
-    # Re-run the full decision cycle through the trading day, hourly at :15
-    # (09:15 ... 14:15 IST). The cycle lock prevents overlap; stock rotation
-    # in select_symbols() makes each cycle cover different stocks.
-    scheduler.add_job(
-        run_cycle_blocking,
-        CronTrigger(day_of_week="mon-fri", hour="9-14", minute=15, timezone=IST),
-        id="intraday_cycles",
-    )
+# Continuous mode: cycles run back-to-back during market hours — as soon as
+# one completes, the next starts (60s breather between them to be polite to
+# data APIs). Stock rotation in select_symbols() makes each cycle cover
+# different stocks, so a full day sweeps most of the NIFTY-100 universe.
+_loop_stop = threading.Event()
+
+
+def continuous_cycle_loop():
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo
+
+    cooldown = orchestrator.config.get("cycle_cooldown_seconds", 60)
+    while not _loop_stop.is_set():
+        now = _dt.now(ZoneInfo(IST))
+        in_window = (
+            now.weekday() < 5
+            and (now.hour, now.minute) >= (9, 15)
+            and (now.hour, now.minute) <= (14, 45)  # last start leaves room to finish pre-close
+        )
+        if in_window:
+            run_cycle_blocking()
+            _loop_stop.wait(cooldown)
+        else:
+            _loop_stop.wait(60)
 scheduler.add_job(
     orchestrator.manage_exits,
     CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*/5", timezone=IST),
@@ -111,7 +126,12 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     for job in scheduler.get_jobs():
         logger.info("Scheduled job %s — next run: %s", job.id, job.next_run_time)
+    if orchestrator.config.get("continuous_cycles", True):
+        threading.Thread(target=continuous_cycle_loop, daemon=True, name="cycle-loop").start()
+        logger.info("Continuous cycle loop started (back-to-back 09:15-14:45 IST, %ss cooldown)",
+                    orchestrator.config.get("cycle_cooldown_seconds", 60))
     yield
+    _loop_stop.set()
     scheduler.shutdown(wait=False)
 
 

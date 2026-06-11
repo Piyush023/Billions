@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'Continuous cycles: back-to-back instead of hourly interval *)",
+      "Bash(git push *)",
+      "Bash(ssh -o BatchMode=yes ubuntu@140.238.250.128 ' *)"
+    ]
+  }
+}

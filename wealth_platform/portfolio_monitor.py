@@ -114,6 +114,13 @@ class PortfolioSentinel:
             'Respond with JSON: {"assessments": [{"symbol": "...", "action": "HOLD"|"TIGHTEN_STOP"|"EXIT_NOW", '
             '"new_stop": <float or null>, "confidence": 0-100, "reasoning": "<1-2 sentences>"}]}'
         )
+        if self.orch.config.get("strategy_profile") == "aggressive":
+            system += (
+                " DESK PROFILE: AGGRESSIVE — capital velocity matters. Additionally flag STAGNATION: "
+                "if a position has gone nowhere (roughly -1% to +1.5%) for 3+ trading days with no "
+                "upcoming catalyst, recommend EXIT_NOW citing stagnation so the desk can rotate the "
+                "capital into a stronger setup. Do not exit positions that are working (>+2%) just to churn."
+            )
         user = (
             f"POSITIONS:\n" + "\n".join(position_lines)
             + ("\n\nFRESH NEWS:\n" + "\n\n".join(news_blocks) if news_blocks else "\n\nNo fresh news found.")

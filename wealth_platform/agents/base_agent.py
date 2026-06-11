@@ -33,14 +33,16 @@ class BaseAgent:
     max_tokens = 1600
     prefer_provider: Optional[str] = None
 
-    def __init__(self, llm: LLMClient, on_output: Optional[Callable[[AgentOutput], None]] = None):
+    def __init__(self, llm: LLMClient, on_output: Optional[Callable[[AgentOutput], None]] = None,
+                 style_suffix: str = ""):
         self.llm = llm
         self.on_output = on_output
+        self.style_suffix = style_suffix
 
     def run(self, context: str) -> AgentOutput:
         logger.info("Agent %s running", self.name)
         response: LLMResponse = self.llm.chat(
-            system=self.system_prompt,
+            system=self.system_prompt + ("\n\n" + self.style_suffix if self.style_suffix else ""),
             user=context,
             max_tokens=self.max_tokens,
             prefer=self.prefer_provider,

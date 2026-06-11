@@ -25,5 +25,7 @@
   },
   "cycle_cooldown_seconds": 60,
   "news_discovery": true,
-  "news_slots": 1
+  "news_slots": 1,
+  "portfolio_sentinel": true,
+  "sentinel_interval_minutes": 15
 }

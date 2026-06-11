@@ -130,6 +130,15 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=continuous_cycle_loop, daemon=True, name="cycle-loop").start()
         logger.info("Continuous cycle loop started (back-to-back 09:15-14:45 IST, %ss cooldown)",
                     orchestrator.config.get("cycle_cooldown_seconds", 60))
+    if orchestrator.config.get("portfolio_sentinel", True):
+        from wealth_platform.portfolio_monitor import PortfolioSentinel
+
+        sentinel = PortfolioSentinel(orchestrator)
+        interval = orchestrator.config.get("sentinel_interval_minutes", 15) * 60
+        threading.Thread(
+            target=sentinel.run_forever, args=(_loop_stop, interval),
+            daemon=True, name="portfolio-sentinel",
+        ).start()
     yield
     _loop_stop.set()
     scheduler.shutdown(wait=False)

@@ -142,6 +142,7 @@ function addEvent(ev) {
   else if (ev.type === 'research_verdict') body = `<b>Research</b> ${ev.symbol}: ${ev.verdict.rating} (${ev.verdict.confidence}%)`;
   else if (ev.type === 'exit') body = `<b class="red">EXIT</b> ${ev.symbol}: ${ev.reason} (${ev.pnl_pct}%)`;
   else if (ev.type === 'news_pick') body = `<b class="amber">📰 NEWS PICK</b> ${ev.symbol} — ${ev.reason}`;
+  else if (ev.type === 'sentinel') body = `<b class="${ev.action === 'HOLD' ? 'blue' : 'amber'}">🛡 SENTINEL</b> ${ev.symbol} (${ev.pnl_pct}%): <b>${ev.action}</b> (${ev.confidence}%)<pre>${ev.reasoning || ''}</pre>`;
   else if (ev.type === 'ipo_analysis') body = `<b>IPO</b> ${ev.ipo?.company || ''}: ${ev.recommendation} (${ev.confidence}%)<pre>${ev.reasoning || ''}</pre>`;
   else if (ev.type === 'eod_report') { body = `<b>EOD report ready</b>`; refresh(); }
   else if (ev.type === 'cycle_started') { resetStages(); body = `<b>Cycle #${ev.cycle_id} started</b>: ${(ev.symbols || []).join(', ')}`; }

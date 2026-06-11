@@ -122,7 +122,7 @@
 <div class="pipelines">
   <div class="panel">
     <div class="ptitle">
-      <h2 style="margin:0">🏹 Shikari — Buy-Side Pipeline <span id="cycle-symbol" class="blue"></span></h2>
+      <h2 style="margin:0">🏹 Hunter — Buy-Side Pipeline <span id="cycle-symbol" class="blue"></span></h2>
       <span class="timer" id="cycle-timer"></span>
     </div>
     <div class="stages" id="pipeline">
@@ -130,11 +130,11 @@
       <span class="stage" data-stage="debate" data-tip="A Bull researcher builds the strongest case FOR buying, a Bear researcher attacks it with the case AGAINST. The Research Manager judges the debate and issues a rating (BUY/HOLD/SELL) with confidence. Weak or low-confidence ideas die here — no further tokens spent.">2 · Bull/Bear Debate</span>
       <span class="stage" data-stage="trader" data-tip="Converts the research verdict into a concrete order: exact quantity, entry price, stop-loss, and target. Knows the desk's capital, open positions, and the ~Rs.60 round-trip cost — proposes HOLD if the edge can't clear costs. Cannot short (delivery account).">3 · Trader</span>
       <span class="stage" data-stage="risk_debate" data-tip="Three risk analysts argue over the proposal: Aggressive (take the risk, size up), Conservative (protect capital, skip it), and Neutral (arbitrates both). Their transcript goes to the Portfolio Manager.">4 · Risk Debate</span>
-      <span class="stage" data-stage="portfolio_manager" data-tip="Final gatekeeper with veto power. Sees everything: research verdict, trade proposal, risk debate, portfolio state, Prahari's notes on holdings, and lessons from past trades. Enforces hard rules (cash limits, 25% per stock, max 2.5% capital at risk). Can approve, reject, resize, or fund the buy by rotating out of a weaker holding.">5 · Portfolio Manager</span>
+      <span class="stage" data-stage="portfolio_manager" data-tip="Final gatekeeper with veto power. Sees everything: research verdict, trade proposal, risk debate, portfolio state, the Sentinel's notes on holdings, and lessons from past trades. Enforces hard rules (cash limits, 25% per stock, max 2.5% capital at risk). Can approve, reject, resize, or fund the buy by rotating out of a weaker holding.">5 · Portfolio Manager</span>
     </div>
   </div>
   <div class="panel">
-    <h2>🛡 Prahari — Sentinel <span class="muted" style="text-transform:none">(guards owned stocks)</span></h2>
+    <h2>🛡 Sentinel <span class="muted" style="text-transform:none">(guards owned stocks)</span></h2>
     <div class="sentinel-body" id="sentinel-status">
       <span class="muted">Idle — no assessments yet this session.</span>
     </div>
@@ -334,7 +334,7 @@ function addEvent(ev) {
     type = 't-exit'; badge = 'exit'; who = 'Exit'; important = true;
     body = `<strong>${ev.symbol}</strong> closed at <b class="${ev.pnl_pct >= 0 ? 'green' : 'red'}">${ev.pnl_pct >= 0 ? '+' : ''}${ev.pnl_pct}%</b> — ${esc(ev.reason || '')}`;
   } else if (ev.type === 'sentinel') {
-    type = 't-sentinel'; badge = 'sentinel'; who = 'Prahari (Sentinel)';
+    type = 't-sentinel'; badge = 'sentinel'; who = 'Sentinel';
     sentinelState[ev.symbol] = { ...ev, time: ist(ev.time) }; renderSentinel();
     body = `<b>${ev.action}</b> (${ev.confidence}%) · position at ${ev.pnl_pct >= 0 ? '+' : ''}${ev.pnl_pct}%<br>${esc(ev.reasoning || '')}`;
   } else if (ev.type === 'news_pick') {

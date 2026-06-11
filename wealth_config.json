@@ -27,5 +27,6 @@
   "news_discovery": true,
   "news_slots": 1,
   "portfolio_sentinel": true,
-  "sentinel_interval_minutes": 15
+  "sentinel_interval_minutes": 15,
+  "exit_cooloff_days": 3
 }

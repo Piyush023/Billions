@@ -95,6 +95,11 @@ class PortfolioSentinel:
                 f"target +{self.orch.config.get('take_profit_pct', 14)}%"
                 + (f", tightened stop {self.stop_overrides[symbol]:.2f}" if symbol in self.stop_overrides else "")
             )
+            thesis = self.orch.desk.thesis_for(symbol)
+            if thesis:
+                position_lines.append(
+                    f"    Original entry thesis ({thesis['opened_at'][:10]}): {thesis['reasoning'][:200]}"
+                )
             headlines = self._headlines_for(symbol)
             if headlines:
                 news_blocks.append(f"{symbol} news:\n" + "\n".join(f"  - {h}" for h in headlines))
@@ -135,6 +140,8 @@ class PortfolioSentinel:
                 None, symbol, "portfolio_sentinel", "Portfolio Sentinel",
                 f"{action} (conf {confidence}): {item.get('reasoning', '')}", "sentinel",
             )
+            # Cross-agent sync: buy-side PM sees this note before any new trade
+            self.orch.desk.record_sentinel_note(symbol, action, item.get("reasoning", ""), confidence)
             if action == "EXIT_NOW" and confidence >= EXIT_CONFIDENCE_THRESHOLD:
                 self._exit(symbol, pos, f"sentinel exit: {item.get('reasoning', '')[:120]}")
             elif action == "TIGHTEN_STOP" and item.get("new_stop"):
@@ -147,7 +154,16 @@ class PortfolioSentinel:
     # ------------------------------------------------------------------
 
     def _exit(self, symbol: str, pos, reason: str):
-        result = self.orch.broker.place_order(symbol=symbol, quantity=pos.quantity, side="SELL", product="CNC")
+        # Shared trade lock: a fill here is atomic w.r.t. the buy-side cycle
+        # loop's funds re-validation, so the desk can't double-spend cash.
+        with self.orch.trade_lock:
+            current = self.orch.broker.get_positions().get(symbol)
+            if not current or current.quantity <= 0:
+                logger.info("Sentinel exit skipped — %s already closed", symbol)
+                return
+            result = self.orch.broker.place_order(
+                symbol=symbol, quantity=current.quantity, side="SELL", product="CNC"
+            )
         change = (pos.last_price / pos.average_price - 1) * 100 if pos.average_price else 0
         self.orch.storage.log_trade(
             None, symbol, "SELL", pos.quantity, result.filled_price or pos.last_price,
@@ -156,6 +172,7 @@ class PortfolioSentinel:
         )
         if result.success:
             self.orch.memory.record_outcome(symbol, change, f"({reason})")
+            self.orch.desk.record_exit(symbol, reason, change)
             self.stop_overrides.pop(symbol, None)
             self._save_state()
         self.orch._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2)})

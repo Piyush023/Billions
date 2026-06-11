@@ -58,11 +58,14 @@ class WealthOrchestrator:
         self.ipo_manager = IPOManager(self.llm)
         self.notifier = Notifier()
         self.history_rag = TradeHistoryRAG(self.storage)
+        from wealth_platform.coordination import TRADE_LOCK, SharedDesk
         from wealth_platform.news_discovery import NewsStockDiscovery
         from wealth_platform.screener import BuiltInScreener
 
         self.screener = BuiltInScreener()
         self.news_discovery = NewsStockDiscovery(self.llm)
+        self.trade_lock = TRADE_LOCK
+        self.desk = SharedDesk(exit_cooloff_days=self.config.get("exit_cooloff_days", 3))
         self._analyzed_on: Optional[str] = None  # date string
         self._analyzed_today: set = set()
         self._current_cycle_id: Optional[int] = None
@@ -138,6 +141,10 @@ class WealthOrchestrator:
         if not ranked:
             ranked = self.config.get("watchlist", ["RELIANCE", "HDFCBANK", "TCS"])
 
+        # Exclude symbols the desk exited recently (cool-off) so the buy side
+        # can't re-enter what the sentinel just sold.
+        ranked = [s for s in ranked if not self.desk.in_exit_cooloff(s)]
+        batch = [s for s in batch if not self.desk.in_exit_cooloff(s)]
         fresh = [s for s in ranked if s not in self._analyzed_today and s not in batch]
         if not fresh and not batch:  # whole ranking covered today — start over
             self._analyzed_today = set()
@@ -220,7 +227,9 @@ class WealthOrchestrator:
 
         self._emit("stage", {"symbol": symbol, "stage": "portfolio_manager"})
         pm_decision = PortfolioManagerAgent(self.llm, cb).decide(
-            symbol, research_decision, proposal, risk_transcript, portfolio_context,
+            symbol, research_decision, proposal, risk_transcript,
+            portfolio_context + "\n\nDESK BRIEFING (from the sentinel agent watching holdings):\n"
+            + self.desk.pm_briefing(),
             self.memory.lessons() + "\n\n" + history_context,
         )
         approved = pm_decision.get("decision") == "APPROVE"
@@ -235,13 +244,32 @@ class WealthOrchestrator:
                     "proposal": proposal, "pm": pm_decision}
 
         quantity = int(pm_decision.get("adjusted_quantity") or proposal["quantity"])
-        result = self.broker.place_order(symbol=symbol, quantity=quantity, side=proposal["action"], product="CNC")
+        # Critical section: the sentinel may have traded while the agents were
+        # debating (minutes). Re-validate funds/positions and fill atomically
+        # under the shared trade lock so the two loops can't double-spend.
+        with self.trade_lock:
+            funds_now = self.broker.get_funds()
+            if proposal["action"] == "BUY":
+                est_cost = quantity * quote.last_price * 1.005  # + costs headroom
+                if est_cost > funds_now.available_cash:
+                    reason = (f"stale-funds guard: needs Rs.{est_cost:.0f} but only "
+                              f"Rs.{funds_now.available_cash:.0f} available now (sentinel may have traded)")
+                    self.storage.log_decision(self._current_cycle_id, symbol, research_decision.get("rating"),
+                                              proposal, {"decision": "ABORTED", "reasoning": reason}, False)
+                    self._emit("trade_executed", {"symbol": symbol, "side": proposal["action"],
+                                                  "quantity": quantity, "success": False, "message": reason})
+                    return {"symbol": symbol, "action": "aborted", "research": research_decision,
+                            "proposal": proposal, "pm": pm_decision}
+            result = self.broker.place_order(symbol=symbol, quantity=quantity, side=proposal["action"], product="CNC")
         self.storage.log_trade(
             self._current_cycle_id, symbol, proposal["action"], quantity,
             result.filled_price or quote.last_price, self.broker.name,
             result.order_id or "", "filled" if result.success else "failed",
             proposal.get("reasoning", ""),
         )
+        if result.success and proposal["action"] == "BUY":
+            self.desk.record_entry(symbol, proposal.get("reasoning", ""),
+                                   proposal.get("stop_loss", 0), proposal.get("take_profit", 0))
         self._emit("trade_executed", {
             "symbol": symbol, "side": proposal["action"], "quantity": quantity,
             "success": result.success, "message": result.message,
@@ -271,11 +299,14 @@ class WealthOrchestrator:
             elif change >= target_pct:
                 reason = f"target hit ({change:.1f}%)"
             if reason:
-                result = self.broker.place_order(symbol=symbol, quantity=pos.quantity, side="SELL", product="CNC")
+                with self.trade_lock:
+                    result = self.broker.place_order(symbol=symbol, quantity=pos.quantity, side="SELL", product="CNC")
                 self.storage.log_trade(None, symbol, "SELL", pos.quantity, result.filled_price or pos.last_price,
                                        self.broker.name, result.order_id or "",
                                        "filled" if result.success else "failed", reason)
                 self.memory.record_outcome(symbol, change, f"({reason})")
+                if result.success:
+                    self.desk.record_exit(symbol, reason, change)
                 self._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2)})
                 self.notifier.send(
                     f"🚪 Exit: {symbol} ({change:+.1f}%)",

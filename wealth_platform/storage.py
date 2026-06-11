@@ -79,8 +79,13 @@ class Storage:
 
     @contextmanager
     def _conn(self):
-        conn = sqlite3.connect(self.db_path)
+        # WAL allows concurrent readers while one thread writes; the busy
+        # timeout makes a second writer wait instead of raising
+        # "database is locked" when the cycle loop and sentinel log at once.
+        conn = sqlite3.connect(self.db_path, timeout=15)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=15000")
         try:
             yield conn
             conn.commit()

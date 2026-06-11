@@ -37,7 +37,8 @@
   .pipelines { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
   @media (max-width: 900px) { .pipelines { grid-template-columns: 1fr; } }
   .stages { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .stage { padding: 5px 11px; border-radius: 14px; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .stage { padding: 5px 11px; border-radius: 14px; border: 1px solid var(--border); font-size: 12px; color: var(--muted); position: relative; cursor: help; }
+  .stage:hover::after { content: attr(data-tip); position: absolute; top: 30px; left: 0; z-index: 60; width: 280px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--text); line-height: 1.5; white-space: normal; text-transform: none; letter-spacing: 0; }
   .stage.active { border-color: var(--blue); color: var(--blue); animation: pulse 1.2s infinite; }
   .stage.done { border-color: var(--green); color: var(--green); }
   @keyframes pulse { 50% { opacity: 0.35; } }
@@ -85,6 +86,8 @@
   .tables { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px; margin-bottom: 12px; }
   @media (max-width: 1000px) { .tables { grid-template-columns: 1fr; } }
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .scrolltable { max-height: 340px; overflow-y: auto; }
+  .scrolltable thead th { position: sticky; top: 0; background: var(--panel); z-index: 5; }
   th { text-align: left; color: var(--muted); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
   td { padding: 5px 8px; border-bottom: 1px solid #21262d; font-variant-numeric: tabular-nums; }
 
@@ -123,11 +126,11 @@
       <span class="timer" id="cycle-timer"></span>
     </div>
     <div class="stages" id="pipeline">
-      <span class="stage" data-stage="analysts">1 · Analysts</span>
-      <span class="stage" data-stage="debate">2 · Bull/Bear Debate</span>
-      <span class="stage" data-stage="trader">3 · Trader</span>
-      <span class="stage" data-stage="risk_debate">4 · Risk Debate</span>
-      <span class="stage" data-stage="portfolio_manager">5 · Portfolio Manager</span>
+      <span class="stage" data-stage="analysts" data-tip="Four specialists gather and interpret data on the stock: Technical (price action, RSI, MACD, volumes), Fundamentals (P/E, ROE, debt, growth), News (headlines and macro events), and Sentiment (crowd mood inferred from news tone and volume). Each ends with a verdict and confidence score.">1 · Analysts</span>
+      <span class="stage" data-stage="debate" data-tip="A Bull researcher builds the strongest case FOR buying, a Bear researcher attacks it with the case AGAINST. The Research Manager judges the debate and issues a rating (BUY/HOLD/SELL) with confidence. Weak or low-confidence ideas die here — no further tokens spent.">2 · Bull/Bear Debate</span>
+      <span class="stage" data-stage="trader" data-tip="Converts the research verdict into a concrete order: exact quantity, entry price, stop-loss, and target. Knows the desk's capital, open positions, and the ~Rs.60 round-trip cost — proposes HOLD if the edge can't clear costs. Cannot short (delivery account).">3 · Trader</span>
+      <span class="stage" data-stage="risk_debate" data-tip="Three risk analysts argue over the proposal: Aggressive (take the risk, size up), Conservative (protect capital, skip it), and Neutral (arbitrates both). Their transcript goes to the Portfolio Manager.">4 · Risk Debate</span>
+      <span class="stage" data-stage="portfolio_manager" data-tip="Final gatekeeper with veto power. Sees everything: research verdict, trade proposal, risk debate, portfolio state, Prahari's notes on holdings, and lessons from past trades. Enforces hard rules (cash limits, 25% per stock, max 2.5% capital at risk). Can approve, reject, resize, or fund the buy by rotating out of a weaker holding.">5 · Portfolio Manager</span>
     </div>
   </div>
   <div class="panel">
@@ -148,15 +151,15 @@
 <div class="tables">
   <div class="panel">
     <h2>Positions</h2>
-    <table id="positions"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>LTP</th><th>P&L ₹</th><th>P&L %</th></tr></thead><tbody></tbody></table>
+    <div class="scrolltable"><table id="positions"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>LTP</th><th>P&L ₹</th><th>P&L %</th></tr></thead><tbody></tbody></table></div></div>
   </div>
   <div class="panel">
     <h2>Recent Trades</h2>
-    <table id="trades"><thead><tr><th>Time (IST)</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead><tbody></tbody></table>
+    <div class="scrolltable"><table id="trades"><thead><tr><th>Time (IST)</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
   </div>
   <div class="panel">
     <h2>Decisions</h2>
-    <table id="decisions"><thead><tr><th>Time (IST)</th><th>Symbol</th><th>Rating</th><th>PM Verdict</th></tr></thead><tbody></tbody></table>
+    <div class="scrolltable"><table id="decisions"><thead><tr><th>Time (IST)</th><th>Symbol</th><th>Rating</th><th>PM Verdict</th></tr></thead><tbody></tbody></table></div></div>
   </div>
 </div>
 
@@ -224,14 +227,14 @@ async function refresh() {
     }).join('') || '<tr><td colspan="6" class="muted">No open positions</td></tr>';
 
     const trades = await (await fetch('/api/trades')).json();
-    document.querySelector('#trades tbody').innerHTML = trades.slice(0, 10).map(t =>
+    document.querySelector('#trades tbody').innerHTML = trades.map(t =>
       `<tr><td>${ist(t.created_at)}</td><td class="sym">${t.symbol}</td>
        <td class="${t.side === 'BUY' ? 'green' : 'red'}"><b>${t.side}</b></td><td>${t.quantity}</td>
        <td>${(t.price || 0).toFixed(1)}</td><td>${t.status}</td></tr>`).join('') ||
       '<tr><td colspan="6" class="muted">No trades yet</td></tr>';
 
     const decisions = await (await fetch('/api/decisions')).json();
-    document.querySelector('#decisions tbody').innerHTML = decisions.slice(0, 12).map(d => {
+    document.querySelector('#decisions tbody').innerHTML = decisions.map(d => {
       const pm = JSON.parse(d.pm_decision || '{}');
       const v = pm.decision || '';
       const cls = v === 'APPROVE' ? 'green' : (v === 'REJECT' ? 'red' : 'amber');
@@ -344,6 +347,9 @@ function addEvent(ev) {
     resetStages(); startTimer();
     type = 't-system'; badge = 'cycle'; who = `Cycle #${ev.cycle_id} started`;
     body = `Analyzing: <strong>${(ev.symbols || []).join(', ')}</strong>`;
+  } else if (ev.type === 'cycle_report') {
+    type = 't-pm'; badge = 'cycle report'; who = `Cycle #${ev.cycle_id} summary`; important = true;
+    body = renderMd(ev.report || '');
   } else if (ev.type === 'cycle_finished') {
     completeStages(); stopTimer(); refresh();
     type = 't-system'; badge = 'cycle'; who = `Cycle #${ev.cycle_id} finished`;

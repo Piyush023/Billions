@@ -378,11 +378,45 @@ class WealthOrchestrator:
                 logger.exception("IPO scan failed")
 
         self._snapshot()
-        summary = json.dumps({"stocks": [{"symbol": r["symbol"], "action": r["action"]} for r in results],
-                              "ipos_analyzed": len(ipo_analyses)})
-        self.storage.finish_cycle(self._current_cycle_id, summary)
-        self._emit("cycle_finished", {"cycle_id": self._current_cycle_id, "summary": summary})
+        report = self._build_cycle_report(results, ipo_analyses)
+        self.storage.finish_cycle(self._current_cycle_id, report)
+        self._emit("cycle_report", {"cycle_id": self._current_cycle_id, "report": report})
+        self._emit("cycle_finished", {"cycle_id": self._current_cycle_id})
         return {"cycle_id": self._current_cycle_id, "results": results, "ipos": ipo_analyses}
+
+    def _build_cycle_report(self, results: List[dict], ipo_analyses: List[dict]) -> str:
+        """Human-readable per-cycle summary — assembled deterministically (no LLM cost)."""
+        lines = []
+        executed = [r for r in results if r.get("action") == "executed"]
+        for r in results:
+            symbol = r.get("symbol", "?")
+            research = r.get("research", {}) or {}
+            proposal = r.get("proposal", {}) or {}
+            pm = r.get("pm", {}) or {}
+            rating = research.get("rating", "-")
+            conf = research.get("confidence", "-")
+            action = r.get("action", "?")
+            outcome = {
+                "executed": f"**TRADED** — {proposal.get('action', '')} {proposal.get('quantity', '')} filled",
+                "rejected": f"PM rejected — {pm.get('reasoning', '')[:140]}",
+                "aborted": "aborted at execution (stale funds guard)",
+                "failed": "order failed at broker",
+                "none": "no trade — " + (proposal.get("reasoning") or research.get("rationale") or "below conviction gate")[:140],
+                "error": f"errored: {r.get('error', '')[:100]}",
+            }.get(action, action)
+            lines.append(f"- **{symbol}**: research {rating} ({conf}%) → {outcome}")
+        funds = self.broker.get_funds()
+        positions = self.broker.get_positions()
+        lines.append("")
+        lines.append(f"**Outcome:** {len(executed)} trade(s) executed, "
+                     f"{len(results) - len(executed)} passed. "
+                     f"Cash now Rs.{funds.available_cash:,.0f}, open positions: "
+                     f"{', '.join(positions.keys()) or 'none'}.")
+        if ipo_analyses:
+            for a in ipo_analyses:
+                lines.append(f"- IPO {a.get('ipo', {}).get('company', '?')}: "
+                             f"{a.get('recommendation', '?')} ({a.get('confidence', 0)}%)")
+        return "\n".join(lines)
 
     def _snapshot(self):
         funds = self.broker.get_funds()

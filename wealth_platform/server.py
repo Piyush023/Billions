@@ -166,14 +166,50 @@ def portfolio():
         mf = orchestrator.mf_manager.portfolio_snapshot()
     except Exception:  # noqa: BLE001
         mf = {"holdings": [], "total_value": 0}
+    starting_capital = getattr(orchestrator.broker, "starting_cash", orchestrator.config.get("capital", 15000))
+    total_value = equity_value + mf.get("total_value", 0)
     return {
         "broker": orchestrator.broker.name,
         "cash": funds.available_cash,
         "positions": positions,
+        "stocks_value": round(sum(p["value"] for p in positions.values()), 2),
         "equity_value": round(equity_value, 2),
         "mutual_funds": mf,
-        "total_value": round(equity_value + mf.get("total_value", 0), 2),
+        "total_value": round(total_value, 2),
+        "starting_capital": starting_capital,
+        "pnl": round(total_value - starting_capital, 2),
+        "pnl_pct": round((total_value / starting_capital - 1) * 100, 2) if starting_capital else 0,
     }
+
+
+# Free-tier limits (approximate, as published by each provider mid-2026)
+PROVIDER_LIMITS = {
+    "groq": {"rpm": 30, "tpm": "12K", "daily": "100K tokens/day"},
+    "cerebras": {"rpm": 30, "tpm": "60K", "daily": "1M tokens/day"},
+    "gemini": {"rpm": 10, "tpm": "250K", "daily": "250 req/day"},
+    "openrouter": {"rpm": 20, "tpm": "-", "daily": "~50 req/day (free models)"},
+    "ollama": {"rpm": "-", "tpm": "-", "daily": "unlimited (local)"},
+    "anthropic": {"rpm": 50, "tpm": "50K", "daily": "pay-per-use"},
+}
+
+
+@app.get("/api/llm-status")
+def llm_status():
+    try:
+        order = orchestrator.llm._provider_order(None)
+    except Exception:  # noqa: BLE001
+        order = []
+    counts = {r["provider"]: r["calls"] for r in orchestrator.storage.provider_counts_today()}
+    return [
+        {
+            "provider": p,
+            "model": orchestrator.llm._model_for(p),
+            "calls_today": counts.get(p, 0),
+            "limits": PROVIDER_LIMITS.get(p, {}),
+            "priority": i + 1,
+        }
+        for i, p in enumerate(order)
+    ]
 
 
 @app.get("/api/history")

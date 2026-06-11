@@ -176,3 +176,10 @@ class Storage:
     def latest_eod_report(self):
         rows = self._rows("SELECT * FROM eod_reports ORDER BY id DESC LIMIT 1")
         return rows[0] if rows else None
+
+    def provider_counts_today(self):
+        today = str(datetime.now().date())
+        return self._rows(
+            "SELECT provider, COUNT(*) AS calls FROM agent_messages "
+            "WHERE created_at LIKE ? GROUP BY provider", (today + "%",)
+        )

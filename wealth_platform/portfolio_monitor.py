@@ -105,7 +105,7 @@ class PortfolioSentinel:
                 news_blocks.append(f"{symbol} news:\n" + "\n".join(f"  - {h}" for h in headlines))
 
         system = (
-            "You are the portfolio sentinel for a positional Indian equity desk (2-12 week holds). "
+            "You are Prahari, the portfolio sentinel for a positional Indian equity desk (2-12 week holds). "
             "You monitor OWNED positions only. For each position, given its P&L state and fresh news, "
             "decide: HOLD (default — do not churn positions on noise), TIGHTEN_STOP (thesis weakening "
             "or big gain to protect; give new_stop price below current price), or EXIT_NOW (only for "
@@ -144,7 +144,7 @@ class PortfolioSentinel:
                     (pos.last_price / pos.average_price - 1) * 100 if pos.average_price else 0, 2),
             })
             self.orch.storage.log_agent_message(
-                None, symbol, "portfolio_sentinel", "Portfolio Sentinel",
+                None, symbol, "portfolio_sentinel", "Prahari (Portfolio Sentinel)",
                 f"{action} (conf {confidence}): {item.get('reasoning', '')}", "sentinel",
             )
             # Cross-agent sync: buy-side PM sees this note before any new trade

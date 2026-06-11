@@ -136,7 +136,7 @@ function addEvent(ev) {
   let body = '';
   if (ev.type === 'agent_report') body = `<b>${ev.role}</b> on ${ev.symbol} <span style="color:var(--muted)">(${ev.provider})</span><pre>${ev.report}</pre>`;
   else if (ev.type === 'stage') { setStage(ev.stage, ev.symbol); body = `<b>${ev.symbol}</b> → stage: ${ev.stage}`; }
-  else if (ev.type === 'pm_decision') body = `<b>PM ${ev.approved ? '✅ APPROVED' : '❌ REJECTED'}</b> ${ev.symbol}<pre>${ev.decision.reasoning || ''}</pre>`;
+  else if (ev.type === 'pm_decision') { completeStages(ev.symbol); body = `<b>PM ${ev.approved ? '✅ APPROVED' : '❌ REJECTED'}</b> ${ev.symbol}<pre>${ev.decision.reasoning || ''}</pre>`; }
   else if (ev.type === 'trade_executed') body = `<b class="green">TRADE</b> ${ev.side} ${ev.quantity} ${ev.symbol} — ${ev.success ? 'filled' : 'FAILED: ' + ev.message}`;
   else if (ev.type === 'trade_proposal') body = `<b>Proposal</b> ${ev.symbol}: ${ev.proposal.action} ${ev.proposal.quantity || ''} @ ${ev.proposal.entry_price || 'mkt'}`;
   else if (ev.type === 'research_verdict') body = `<b>Research</b> ${ev.symbol}: ${ev.verdict.rating} (${ev.verdict.confidence}%)`;
@@ -144,7 +144,7 @@ function addEvent(ev) {
   else if (ev.type === 'ipo_analysis') body = `<b>IPO</b> ${ev.ipo?.company || ''}: ${ev.recommendation} (${ev.confidence}%)<pre>${ev.reasoning || ''}</pre>`;
   else if (ev.type === 'eod_report') { body = `<b>EOD report ready</b>`; refresh(); }
   else if (ev.type === 'cycle_started') { resetStages(); body = `<b>Cycle #${ev.cycle_id} started</b>: ${(ev.symbols || []).join(', ')}`; }
-  else if (ev.type === 'cycle_finished') { body = `<b>Cycle #${ev.cycle_id} finished</b>`; refresh(); }
+  else if (ev.type === 'cycle_finished') { completeStages(); body = `<b>Cycle #${ev.cycle_id} finished</b>`; refresh(); }
   else body = JSON.stringify(ev);
   div.innerHTML = `<div class="meta">${(ev.time || '').slice(11, 19)}</div>${body}`;
   feed.prepend(div);
@@ -160,6 +160,10 @@ function setStage(stage, symbol) {
   });
 }
 function resetStages() { document.querySelectorAll('.stage').forEach(el => el.className = 'stage'); }
+function completeStages(symbol) {
+  document.querySelectorAll('.stage').forEach(el => el.className = 'stage done');
+  document.getElementById('cycle-symbol').textContent = symbol ? `— ${symbol} ✓ complete` : '— cycle complete ✓';
+}
 
 async function runCycle() {
   const r = await fetch('/api/run-cycle', {method: 'POST'});

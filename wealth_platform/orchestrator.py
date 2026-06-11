@@ -58,9 +58,11 @@ class WealthOrchestrator:
         self.ipo_manager = IPOManager(self.llm)
         self.notifier = Notifier()
         self.history_rag = TradeHistoryRAG(self.storage)
+        from wealth_platform.news_discovery import NewsStockDiscovery
         from wealth_platform.screener import BuiltInScreener
 
         self.screener = BuiltInScreener()
+        self.news_discovery = NewsStockDiscovery(self.llm)
         self._analyzed_on: Optional[str] = None  # date string
         self._analyzed_today: set = set()
         self._current_cycle_id: Optional[int] = None
@@ -114,6 +116,20 @@ class WealthOrchestrator:
             self._analyzed_today = set()
 
         n = self.config.get("max_stocks_per_cycle", 3)
+
+        # News-driven discovery: stocks making headlines (including outside
+        # the NIFTY-100 universe) get priority slots in the batch.
+        batch: List[str] = []
+        if self.config.get("news_discovery", True):
+            try:
+                news_slots = self.config.get("news_slots", 1)
+                for item in self.news_discovery.discover():
+                    if item["symbol"] not in self._analyzed_today and len(batch) < news_slots:
+                        batch.append(item["symbol"])
+                        self._emit("news_pick", {"symbol": item["symbol"], "reason": item.get("reason", "")})
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("News discovery failed (%s)", exc)
+
         ranked: List[str] = []
         try:
             ranked = self.screener.ranked_symbols(top_n=40)
@@ -122,11 +138,11 @@ class WealthOrchestrator:
         if not ranked:
             ranked = self.config.get("watchlist", ["RELIANCE", "HDFCBANK", "TCS"])
 
-        fresh = [s for s in ranked if s not in self._analyzed_today]
-        if not fresh:  # whole ranking covered today — start over
+        fresh = [s for s in ranked if s not in self._analyzed_today and s not in batch]
+        if not fresh and not batch:  # whole ranking covered today — start over
             self._analyzed_today = set()
             fresh = ranked
-        batch = fresh[:n]
+        batch.extend(fresh[: n - len(batch)])
         self._analyzed_today.update(batch)
         logger.info("Cycle batch: %s (analyzed today: %d)", batch, len(self._analyzed_today))
         return batch

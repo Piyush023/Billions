@@ -23,5 +23,7 @@
     "broker": "paper | zerodha | groww. Always starts in paper. Switch to groww (free API) only after paper trading proves profitable.",
     "credentials": "NO secrets in this file. All keys go in .env / environment variables \u2014 see docs/DEPENDENCIES_NEEDED.md"
   },
-  "cycle_cooldown_seconds": 60
+  "cycle_cooldown_seconds": 60,
+  "news_discovery": true,
+  "news_slots": 1
 }

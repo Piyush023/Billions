@@ -6,160 +6,283 @@
 <title>AI Wealth Platform</title>
 <style>
   :root {
-    --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #e6edf3;
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c2330; --border: #30363d; --text: #e6edf3;
     --muted: #8b949e; --green: #3fb950; --red: #f85149; --blue: #58a6ff; --amber: #d29922;
+    --purple: #bc8cff; --cyan: #39c5cf;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 16px; }
-  h1 { font-size: 20px; margin-bottom: 16px; }
-  h2 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
-  .stat-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
-  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; }
-  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
-  .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
-  .green { color: var(--green); } .red { color: var(--red); } .blue { color: var(--blue); } .amber { color: var(--amber); }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-  td { padding: 6px 8px; border-bottom: 1px solid #21262d; }
-  button { background: #238636; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px; cursor: pointer; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 14px 18px; font-size: 14px; }
+  h2 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .green { color: var(--green); } .red { color: var(--red); } .blue { color: var(--blue); }
+  .amber { color: var(--amber); } .purple { color: var(--purple); } .muted { color: var(--muted); }
+
+  /* ── Header ─────────────────────────────────────────── */
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  header .title { font-size: 18px; font-weight: 700; white-space: nowrap; }
+  header .title .mode { font-size: 12px; color: var(--blue); font-weight: 400; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; flex: 1; }
+  .chip { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; }
+  .chip .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .chip .value { font-size: 16px; font-weight: 650; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .actions { margin-left: auto; display: flex; gap: 8px; }
+  button { background: #238636; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; cursor: pointer; font-weight: 600; }
   button:hover { background: #2ea043; }
   button.secondary { background: #21262d; border: 1px solid var(--border); }
-  .pipeline { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
-  .stage { padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .info { cursor: help; color: var(--muted); font-size: 11px; border: 1px solid var(--border); border-radius: 50%; padding: 0 5px; margin-left: 4px; position: relative; }
+  .info .tip { display: none; position: absolute; top: 20px; right: -10px; z-index: 50; width: 300px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--text); line-height: 1.5; text-align: left; }
+  .info:hover .tip { display: block; }
+
+  /* ── Pipelines row ──────────────────────────────────── */
+  .pipelines { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 900px) { .pipelines { grid-template-columns: 1fr; } }
+  .stages { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .stage { padding: 5px 11px; border-radius: 14px; border: 1px solid var(--border); font-size: 12px; color: var(--muted); position: relative; cursor: help; }
+  .stage:hover::after { content: attr(data-tip); position: absolute; top: 30px; left: 0; z-index: 60; width: 280px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--text); line-height: 1.5; white-space: normal; text-transform: none; letter-spacing: 0; }
   .stage.active { border-color: var(--blue); color: var(--blue); animation: pulse 1.2s infinite; }
   .stage.done { border-color: var(--green); color: var(--green); }
-  @keyframes pulse { 50% { opacity: 0.4; } }
-  #feed { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column-reverse; }
-  .event { border-left: 3px solid var(--border); padding: 8px 12px; margin-bottom: 8px; font-size: 13px; }
-  .event .meta { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
-  .event.agent_report { border-color: var(--blue); }
-  .event.trade_executed { border-color: var(--green); }
-  .event.pm_decision { border-color: var(--amber); }
-  .event.exit { border-color: var(--red); }
-  .event pre { white-space: pre-wrap; font-family: inherit; max-height: 160px; overflow-y: auto; color: var(--text); }
-  #eod { white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
-  .full { grid-column: 1 / -1; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .ptitle { display: flex; align-items: baseline; gap: 10px; }
+  .timer { font-size: 12px; color: var(--amber); font-variant-numeric: tabular-nums; }
+  .sentinel-body { font-size: 12px; line-height: 1.7; margin-top: 8px; }
+
+  /* ── LLM strip ──────────────────────────────────────── */
+  .llms { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .llm { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 11.5px; line-height: 1.5; }
+  .llm b { font-size: 12.5px; }
+  .llm.last-used { border-color: var(--cyan); }
+  .llm .lim { color: var(--muted); }
+
+  /* ── Live feed (full width) ─────────────────────────── */
+  #feedwrap { margin-bottom: 12px; }
+  #feed { max-height: 540px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .event { border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; padding: 10px 14px; background: var(--panel2); }
+  .event .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+  .event .badge { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; }
+  .event .who { font-weight: 650; font-size: 13.5px; }
+  .event .sym { color: var(--cyan); font-weight: 600; font-family: ui-monospace, monospace; }
+  .event .meta { color: var(--muted); font-size: 11px; margin-left: auto; font-variant-numeric: tabular-nums; }
+  .event .body { font-size: 13px; line-height: 1.55; color: #c9d4e0; }
+  .event .body.collapsed { max-height: 110px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); }
+  .event .more { font-size: 11px; color: var(--blue); cursor: pointer; margin-top: 4px; display: inline-block; }
+  /* markdown elements inside feed */
+  .body h1, .body h2-md, .body h3-md, .body .mdh { font-size: 13.5px; color: var(--blue); margin: 8px 0 3px; font-weight: 700; text-transform: none; letter-spacing: 0; }
+  .body ul { margin: 4px 0 6px 18px; }
+  .body li { margin: 2px 0; }
+  .body strong { color: #fff; }
+  .body code { font-family: ui-monospace, monospace; background: #11161f; border-radius: 4px; padding: 0 5px; font-size: 12px; color: var(--cyan); }
+  .body .verdict { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; background: #11161f; border: 1px solid var(--border); }
+  /* color themes per event type */
+  .event.t-agent     { border-left-color: var(--blue); }    .badge.t-agent { background: #0d2745; color: var(--blue); }
+  .event.t-trade     { border-left-color: var(--green); background: #122117; } .badge.t-trade { background: #15351e; color: var(--green); }
+  .event.t-pm        { border-left-color: var(--amber); }   .badge.t-pm { background: #3a2d10; color: var(--amber); }
+  .event.t-exit      { border-left-color: var(--red); background: #271417; }   .badge.t-exit { background: #43181b; color: var(--red); }
+  .event.t-sentinel  { border-left-color: var(--purple); }  .badge.t-sentinel { background: #2c1f45; color: var(--purple); }
+  .event.t-news      { border-left-color: var(--cyan); }    .badge.t-news { background: #0e3438; color: var(--cyan); }
+  .event.t-system    { border-left-color: var(--border); }  .badge.t-system { background: #21262d; color: var(--muted); }
+  .event.important { box-shadow: 0 0 0 1px rgba(210,153,34,.35); }
+
+  /* ── Tables row ─────────────────────────────────────── */
+  .tables { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 1000px) { .tables { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .scrolltable { max-height: 340px; overflow-y: auto; }
+  .scrolltable thead th { position: sticky; top: 0; background: var(--panel); z-index: 5; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+  td { padding: 5px 8px; border-bottom: 1px solid #21262d; font-variant-numeric: tabular-nums; }
+
+  /* ── EOD ────────────────────────────────────────────── */
+  #eod { white-space: pre-wrap; font-size: 13px; line-height: 1.6; color: #c9d4e0; }
+  details > summary { cursor: pointer; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
-<h1>🏦 AI Wealth Platform <span id="broker" class="blue" style="font-size:13px"></span></h1>
 
-<div class="stat-row">
-  <div class="stat"><div class="label">Total Value</div><div class="value" id="total">—</div></div>
-  <div class="stat"><div class="label">Cash</div><div class="value" id="cash">—</div></div>
-  <div class="stat"><div class="label">Equity</div><div class="value" id="equity">—</div></div>
-  <div class="stat"><div class="label">Mutual Funds</div><div class="value" id="mf">—</div></div>
-  <div class="stat">
-    <div class="label">Actions</div>
-    <div style="margin-top:6px; display:flex; gap:8px;">
-      <button onclick="runCycle()">▶ Run Cycle</button>
-      <button class="secondary" onclick="runEod()">EOD Report</button>
+<header>
+  <div class="title">🏦 AI Wealth Platform <span class="mode" id="broker"></span></div>
+  <div class="chips">
+    <div class="chip"><div class="label">Total Value <span class="info">ⓘ<span class="tip">
+      <b>Total Value</b> = Cash + Stocks + Mutual Funds<br><br>
+      <b>Cash</b> — uninvested money in the broker account.<br>
+      <b>Stocks</b> — sum of (live price × quantity) for every open position.<br>
+      <b>Mutual Funds</b> — units × latest AMFI NAV for recorded holdings.<br><br>
+      <b>P&L</b> = Total Value − Starting Capital (₹<span id="startcap">15,000</span>).
+    </span></span></div><div class="value" id="total">—</div></div>
+    <div class="chip"><div class="label">P&L</div><div class="value" id="pnl">—</div></div>
+    <div class="chip"><div class="label">Cash</div><div class="value" id="cash">—</div></div>
+    <div class="chip"><div class="label">Stocks</div><div class="value" id="stocks">—</div></div>
+    <div class="chip"><div class="label">Mutual Funds</div><div class="value" id="mf">—</div></div>
+  </div>
+  <div class="actions">
+    <button onclick="runCycle()">▶ Run Cycle</button>
+    <button class="secondary" onclick="runEod()">EOD Report</button>
+  </div>
+</header>
+
+<div class="pipelines">
+  <div class="panel">
+    <div class="ptitle">
+      <h2 style="margin:0">🏹 Hunter — Buy-Side Pipeline <span id="cycle-symbol" class="blue"></span></h2>
+      <span class="timer" id="cycle-timer"></span>
+    </div>
+    <div class="stages" id="pipeline">
+      <span class="stage" data-stage="analysts" data-tip="Four specialists gather and interpret data on the stock: Technical (price action, RSI, MACD, volumes), Fundamentals (P/E, ROE, debt, growth), News (headlines and macro events), and Sentiment (crowd mood inferred from news tone and volume). Each ends with a verdict and confidence score.">1 · Analysts</span>
+      <span class="stage" data-stage="debate" data-tip="A Bull researcher builds the strongest case FOR buying, a Bear researcher attacks it with the case AGAINST. The Research Manager judges the debate and issues a rating (BUY/HOLD/SELL) with confidence. Weak or low-confidence ideas die here — no further tokens spent.">2 · Bull/Bear Debate</span>
+      <span class="stage" data-stage="trader" data-tip="Converts the research verdict into a concrete order: exact quantity, entry price, stop-loss, and target. Knows the desk's capital, open positions, and the ~Rs.60 round-trip cost — proposes HOLD if the edge can't clear costs. Cannot short (delivery account).">3 · Trader</span>
+      <span class="stage" data-stage="risk_debate" data-tip="Three risk analysts argue over the proposal: Aggressive (take the risk, size up), Conservative (protect capital, skip it), and Neutral (arbitrates both). Their transcript goes to the Portfolio Manager.">4 · Risk Debate</span>
+      <span class="stage" data-stage="portfolio_manager" data-tip="Final gatekeeper with veto power. Sees everything: research verdict, trade proposal, risk debate, portfolio state, the Sentinel's notes on holdings, and lessons from past trades. Enforces hard rules (cash limits, 25% per stock, max 2.5% capital at risk). Can approve, reject, resize, or fund the buy by rotating out of a weaker holding.">5 · Portfolio Manager</span>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>🛡 Sentinel <span class="muted" style="text-transform:none">(guards owned stocks)</span></h2>
+    <div class="sentinel-body" id="sentinel-status">
+      <span class="muted">Idle — no assessments yet this session.</span>
     </div>
   </div>
 </div>
 
-<div class="panel full" style="margin-bottom:16px;">
-  <h2>Decision Pipeline <span id="cycle-symbol" class="blue"></span></h2>
-  <div class="pipeline" id="pipeline">
-    <span class="stage" data-stage="analysts">1 · Analysts</span>
-    <span class="stage" data-stage="debate">2 · Bull/Bear Debate</span>
-    <span class="stage" data-stage="trader">3 · Trader</span>
-    <span class="stage" data-stage="risk_debate">4 · Risk Debate</span>
-    <span class="stage" data-stage="portfolio_manager">5 · Portfolio Manager</span>
-  </div>
+<div class="llms" id="llms"></div>
+
+<div class="panel" id="feedwrap">
+  <h2>Live Agent Feed <span class="muted" style="text-transform:none">(all times IST)</span></h2>
+  <div id="feed"></div>
 </div>
 
-<div class="grid">
-  <div class="panel">
-    <h2>Live Agent Feed</h2>
-    <div id="feed"></div>
-  </div>
+<div class="tables">
   <div class="panel">
     <h2>Positions</h2>
-    <table id="positions"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>LTP</th><th>P&L</th></tr></thead><tbody></tbody></table>
-    <h2 style="margin-top:20px;">Recent Trades <span id="trade-count" style="text-transform:none;font-size:12px;"></span></h2>
-    <div style="max-height:320px; overflow-y:auto;">
-      <table id="trades"><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>P&L</th><th>Status</th></tr></thead><tbody></tbody></table>
-    </div>
+    <div class="scrolltable"><table id="positions"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>LTP</th><th>P&L ₹</th><th>P&L %</th></tr></thead><tbody></tbody></table></div></div>
+  </div>
+  <div class="panel">
+    <h2>Recent Trades <span id="trade-count" class="muted" style="text-transform:none;font-size:11px;"></span></h2>
+    <div class="scrolltable"><table id="trades"><thead><tr><th>Time (IST)</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>P&L ₹</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
   </div>
   <div class="panel">
     <h2>Decisions</h2>
-    <table id="decisions"><thead><tr><th>Symbol</th><th>Rating</th><th>PM</th><th>Time</th></tr></thead><tbody></tbody></table>
+    <div class="scrolltable"><table id="decisions"><thead><tr><th>Time (IST)</th><th>Symbol</th><th>Rating</th><th>PM Verdict</th></tr></thead><tbody></tbody></table></div></div>
   </div>
-  <div class="panel">
-    <h2>End-of-Day Report</h2>
+</div>
+
+<div class="panel">
+  <details open>
+    <summary>End-of-Day Report</summary>
     <div id="eod">Loading…</div>
-  </div>
+  </details>
 </div>
 
 <script>
 const rupee = v => '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits: 0});
 
+// Server timestamps are naive UTC ISO strings — render them in IST.
+function ist(isoString, withDate = false) {
+  if (!isoString) return '';
+  let s = String(isoString).replace(' ', 'T');
+  if (!s.endsWith('Z') && !s.includes('+')) s += 'Z';
+  const d = new Date(s);
+  const opts = { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  if (withDate) Object.assign(opts, { day: '2-digit', month: 'short' });
+  return d.toLocaleString('en-IN', opts);
+}
+
+// ── tiny markdown renderer for agent reports ─────────────
+function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderMd(text) {
+  if (!text) return '';
+  let lines = esc(text).split('\n'), out = [], inList = false;
+  for (let ln of lines) {
+    ln = ln.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+           .replace(/`([^`]+)`/g, '<code>$1</code>');
+    const h = ln.match(/^#{1,4}\s+(.*)/);
+    const li = ln.match(/^\s*[-*•]\s+(.*)/);
+    const verdict = ln.match(/^(?:.*?\b)?(BULLISH|BEARISH|NEUTRAL|UNDERVALUED|OVERVALUED|FAIRLY VALUED|POSITIVE|NEGATIVE|MIXED)\b.*confidence.*$/i);
+    if (h) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<div class="mdh">${h[1]}</div>`); }
+    else if (li) { if (!inList) { out.push('<ul>'); inList = true; } out.push(`<li>${li[1]}</li>`); }
+    else if (ln.trim() === '' || ln.trim() === '---') { if (inList) { out.push('</ul>'); inList = false; } }
+    else if (verdict) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<span class="verdict">${ln.trim()}</span>`); }
+    else { if (inList) { out.push('</ul>'); inList = false; } out.push(ln + '<br>'); }
+  }
+  if (inList) out.push('</ul>');
+  return out.join('');
+}
+
+// ── stats / tables refresh ───────────────────────────────
 async function refresh() {
   try {
     const p = await (await fetch('/api/portfolio')).json();
     document.getElementById('broker').textContent = '(' + p.broker + ' mode)';
     document.getElementById('total').textContent = rupee(p.total_value);
+    document.getElementById('startcap').textContent = Number(p.starting_capital).toLocaleString('en-IN');
+    const pnlEl = document.getElementById('pnl');
+    pnlEl.textContent = `${p.pnl >= 0 ? '+' : ''}${rupee(p.pnl)} (${p.pnl_pct >= 0 ? '+' : ''}${p.pnl_pct}%)`;
+    pnlEl.className = 'value ' + (p.pnl >= 0 ? 'green' : 'red');
     document.getElementById('cash').textContent = rupee(p.cash);
-    document.getElementById('equity').textContent = rupee(p.equity_value);
+    document.getElementById('stocks').textContent = rupee(p.stocks_value);
     document.getElementById('mf').textContent = rupee(p.mutual_funds.total_value || 0);
-    const ptb = document.querySelector('#positions tbody');
-    ptb.innerHTML = Object.entries(p.positions).map(([s, x]) =>
-      `<tr><td>${s}</td><td>${x.quantity}</td><td>${x.avg_price.toFixed(1)}</td><td>${x.last_price.toFixed(1)}</td>
-       <td class="${x.pnl >= 0 ? 'green' : 'red'}">${x.pnl.toFixed(0)}</td></tr>`).join('') ||
-      '<tr><td colspan="5" style="color:var(--muted)">No open positions</td></tr>';
+
+    document.querySelector('#positions tbody').innerHTML = Object.entries(p.positions).map(([s, x]) => {
+      const pct = x.avg_price ? ((x.last_price / x.avg_price - 1) * 100) : 0;
+      return `<tr><td class="sym">${s}</td><td>${x.quantity}</td><td>${x.avg_price.toFixed(1)}</td><td>${x.last_price.toFixed(1)}</td>
+        <td class="${x.pnl >= 0 ? 'green' : 'red'}">${x.pnl.toFixed(0)}</td>
+        <td class="${pct >= 0 ? 'green' : 'red'}">${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%</td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="muted">No open positions</td></tr>';
 
     const trades = await (await fetch('/api/trades')).json();
     document.getElementById('trade-count').textContent = trades.length ? `(${trades.length})` : '';
     document.querySelector('#trades tbody').innerHTML = trades.map(t => {
       const pnlCell = (t.pnl === null || t.pnl === undefined)
-        ? '<td style="color:var(--muted)">—</td>'
-        : `<td class="${t.pnl >= 0 ? 'green' : 'red'}">${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(1)}</td>`;
-      return `<tr><td>${t.created_at.slice(5, 16)}</td><td>${t.symbol}</td>
-       <td class="${t.side === 'BUY' ? 'green' : 'red'}">${t.side}</td><td>${t.quantity}</td>
+        ? '<td class="muted">—</td>'
+        : `<td class="${t.pnl >= 0 ? 'green' : 'red'}">${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(0)}</td>`;
+      return `<tr><td>${ist(t.created_at)}</td><td class="sym">${t.symbol}</td>
+       <td class="${t.side === 'BUY' ? 'green' : 'red'}"><b>${t.side}</b></td><td>${t.quantity}</td>
        <td>${(t.price || 0).toFixed(1)}</td>${pnlCell}<td>${t.status}</td></tr>`;
     }).join('') ||
-      '<tr><td colspan="7" style="color:var(--muted)">No trades yet</td></tr>';
+      '<tr><td colspan="7" class="muted">No trades yet</td></tr>';
 
     const decisions = await (await fetch('/api/decisions')).json();
-    document.querySelector('#decisions tbody').innerHTML = decisions.slice(0, 10).map(d => {
+    document.querySelector('#decisions tbody').innerHTML = decisions.map(d => {
       const pm = JSON.parse(d.pm_decision || '{}');
-      return `<tr><td>${d.symbol}</td><td>${d.research_rating || ''}</td>
-        <td class="${d.approved ? 'green' : 'amber'}">${pm.decision || ''}</td>
-        <td>${d.created_at.slice(5, 16)}</td></tr>`;
-    }).join('') || '<tr><td colspan="4" style="color:var(--muted)">No decisions yet</td></tr>';
+      const v = pm.decision || '';
+      const cls = v === 'APPROVE' ? 'green' : (v === 'REJECT' ? 'red' : 'amber');
+      return `<tr><td>${ist(d.created_at)}</td><td class="sym">${d.symbol}</td><td>${d.research_rating || ''}</td>
+        <td class="${cls}">${v}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" class="muted">No decisions yet</td></tr>';
 
     const eod = await (await fetch('/api/eod')).json();
-    document.getElementById('eod').textContent = eod.report || 'No EOD report yet.';
+    document.getElementById('eod').innerHTML = renderMd(eod.report || 'No EOD report yet.');
   } catch (e) { console.error(e); }
 }
 
-function addEvent(ev) {
-  const feed = document.getElementById('feed');
-  const div = document.createElement('div');
-  div.className = 'event ' + ev.type;
-  let body = '';
-  if (ev.type === 'agent_report') body = `<b>${ev.role}</b> on ${ev.symbol} <span style="color:var(--muted)">(${ev.provider})</span><pre>${ev.report}</pre>`;
-  else if (ev.type === 'stage') { setStage(ev.stage, ev.symbol); body = `<b>${ev.symbol}</b> → stage: ${ev.stage}`; }
-  else if (ev.type === 'pm_decision') body = `<b>PM ${ev.approved ? '✅ APPROVED' : '❌ REJECTED'}</b> ${ev.symbol}<pre>${ev.decision.reasoning || ''}</pre>`;
-  else if (ev.type === 'trade_executed') body = `<b class="green">TRADE</b> ${ev.side} ${ev.quantity} ${ev.symbol} — ${ev.success ? 'filled' : 'FAILED: ' + ev.message}`;
-  else if (ev.type === 'trade_proposal') body = `<b>Proposal</b> ${ev.symbol}: ${ev.proposal.action} ${ev.proposal.quantity || ''} @ ${ev.proposal.entry_price || 'mkt'}`;
-  else if (ev.type === 'research_verdict') body = `<b>Research</b> ${ev.symbol}: ${ev.verdict.rating} (${ev.verdict.confidence}%)`;
-  else if (ev.type === 'exit') body = `<b class="red">EXIT</b> ${ev.symbol}: ${ev.reason} (${ev.pnl_pct}%${ev.pnl != null ? ', ₹' + ev.pnl : ''})`;
-  else if (ev.type === 'bot_start') body = `<b class="green">🤖 BOT STARTED</b> — trading day beginning`;
-  else if (ev.type === 'bot_stop') body = `<b class="red">🛑 BOT STOPPED</b> — trading day over`;
-  else if (ev.type === 'ipo_analysis') body = `<b>IPO</b> ${ev.ipo?.company || ''}: ${ev.recommendation} (${ev.confidence}%)<pre>${ev.reasoning || ''}</pre>`;
-  else if (ev.type === 'eod_report') { body = `<b>EOD report ready</b>`; refresh(); }
-  else if (ev.type === 'cycle_started') { resetStages(); body = `<b>Cycle #${ev.cycle_id} started</b>: ${(ev.symbols || []).join(', ')}`; }
-  else if (ev.type === 'cycle_finished') { body = `<b>Cycle #${ev.cycle_id} finished</b>`; refresh(); }
-  else body = JSON.stringify(ev);
-  div.innerHTML = `<div class="meta">${(ev.time || '').slice(11, 19)}</div>${body}`;
-  feed.prepend(div);
-  while (feed.children.length > 60) feed.removeChild(feed.lastChild);
+// ── LLM provider strip ───────────────────────────────────
+let lastProvider = '';
+async function refreshLlms() {
+  try {
+    const llms = await (await fetch('/api/llm-status')).json();
+    document.getElementById('llms').innerHTML = llms.map(l => `
+      <div class="llm ${l.provider === lastProvider ? 'last-used' : ''}">
+        <b>${l.provider}</b> <span class="muted">#${l.priority}</span> · <code>${l.model}</code><br>
+        <span class="lim">limits: ${l.limits.rpm || '-'} rpm · ${l.limits.tpm || '-'} tpm · ${l.limits.daily || '-'}</span>
+        · <span class="blue">${l.calls_today} calls today</span>
+      </div>`).join('');
+  } catch (e) { console.error(e); }
 }
 
+// ── pipeline + timer ─────────────────────────────────────
+let cycleStart = null, timerInterval = null;
+function startTimer() {
+  cycleStart = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - cycleStart) / 1000);
+    document.getElementById('cycle-timer').textContent = `⏱ ${Math.floor(s/60)}m ${s%60}s elapsed`;
+  }, 1000);
+}
+function stopTimer(final = true) {
+  clearInterval(timerInterval);
+  if (cycleStart && final) {
+    const s = Math.floor((Date.now() - cycleStart) / 1000);
+    document.getElementById('cycle-timer').textContent = `✓ completed in ${Math.floor(s/60)}m ${s%60}s`;
+  }
+}
 function setStage(stage, symbol) {
   document.getElementById('cycle-symbol').textContent = '— ' + symbol;
   let reached = false;
@@ -169,6 +292,104 @@ function setStage(stage, symbol) {
   });
 }
 function resetStages() { document.querySelectorAll('.stage').forEach(el => el.className = 'stage'); }
+function completeStages(symbol) {
+  document.querySelectorAll('.stage').forEach(el => el.className = 'stage done');
+  document.getElementById('cycle-symbol').textContent = symbol ? `— ${symbol} ✓` : '— cycle complete ✓';
+}
+
+// ── sentinel panel ───────────────────────────────────────
+const sentinelState = {};
+function renderSentinel() {
+  const el = document.getElementById('sentinel-status');
+  const entries = Object.entries(sentinelState);
+  if (!entries.length) { el.innerHTML = '<span class="muted">Idle — no assessments yet this session.</span>'; return; }
+  el.innerHTML = entries.map(([sym, s]) => {
+    const cls = s.action === 'HOLD' ? 'blue' : (s.action === 'EXIT_NOW' ? 'red' : 'amber');
+    return `<div><span class="sym">${sym}</span> <b class="${cls}">${s.action}</b>
+      <span class="muted">(${s.confidence}% · ${s.time})</span><br>
+      <span class="muted">${esc(s.reasoning || '').slice(0, 140)}</span></div>`;
+  }).join('<hr style="border-color:#21262d;margin:6px 0">');
+}
+
+// ── live feed ────────────────────────────────────────────
+function addEvent(ev) {
+  const feed = document.getElementById('feed');
+  let type = 't-system', badge = 'system', who = '', body = '', important = false, collapsible = false;
+
+  if (ev.type === 'agent_report') {
+    type = 't-agent'; badge = 'agent'; who = ev.role;
+    body = renderMd(ev.report); collapsible = true;
+  } else if (ev.type === 'stage') {
+    setStage(ev.stage, ev.symbol); return;            // pipeline-only, keep feed clean
+  } else if (ev.type === 'research_verdict') {
+    type = 't-pm'; badge = 'verdict'; who = 'Research Manager'; important = true;
+    body = `<span class="verdict">${ev.verdict.rating} · ${ev.verdict.confidence}% confidence</span><br>${esc(ev.verdict.rationale || '')}`;
+  } else if (ev.type === 'trade_proposal') {
+    type = 't-agent'; badge = 'proposal'; who = 'Trader';
+    const pr = ev.proposal;
+    body = `<strong>${pr.action}</strong> ${pr.quantity || ''} @ ${pr.entry_price || 'mkt'} · stop <code>${pr.stop_loss || '-'}</code> · target <code>${pr.take_profit || '-'}</code><br>${esc(pr.reasoning || '')}`;
+  } else if (ev.type === 'pm_decision') {
+    completeStages(ev.symbol);
+    type = 't-pm'; badge = ev.approved ? 'approved' : 'rejected'; who = 'Portfolio Manager'; important = true;
+    body = `<span class="verdict ${ev.approved ? 'green' : 'red'}">${ev.approved ? '✅ APPROVED' : '❌ REJECTED'}</span><br>${esc(ev.decision.reasoning || '')}`;
+  } else if (ev.type === 'trade_executed') {
+    type = 't-trade'; badge = 'trade'; who = 'Execution'; important = true;
+    const pnlStr = ev.pnl != null ? ` · P&L <b class="${ev.pnl >= 0 ? 'green' : 'red'}">${ev.pnl >= 0 ? '+' : ''}₹${ev.pnl}</b>` : '';
+    body = `<strong>${ev.side} ${ev.quantity} ${ev.symbol}</strong> — ${ev.success ? 'filled ✓' : 'FAILED: ' + esc(ev.message || '')}${pnlStr}`;
+  } else if (ev.type === 'exit') {
+    type = 't-exit'; badge = 'exit'; who = 'Exit'; important = true;
+    const pnlAmt = ev.pnl != null ? ` · <b class="${ev.pnl >= 0 ? 'green' : 'red'}">${ev.pnl >= 0 ? '+' : ''}₹${ev.pnl}</b>` : '';
+    body = `<strong>${ev.symbol}</strong> closed at <b class="${ev.pnl_pct >= 0 ? 'green' : 'red'}">${ev.pnl_pct >= 0 ? '+' : ''}${ev.pnl_pct}%</b>${pnlAmt} — ${esc(ev.reason || '')}`;
+  } else if (ev.type === 'bot_start') {
+    type = 't-system'; badge = 'bot'; who = 'Bot Started'; important = true;
+    body = 'Trading day beginning — morning notification sent.';
+  } else if (ev.type === 'bot_stop') {
+    type = 't-system'; badge = 'bot'; who = 'Bot Stopped'; important = true;
+    body = 'Trading day over — afternoon notification sent.';
+  } else if (ev.type === 'sentinel') {
+    type = 't-sentinel'; badge = 'sentinel'; who = 'Sentinel';
+    sentinelState[ev.symbol] = { ...ev, time: ist(ev.time) }; renderSentinel();
+    body = `<b>${ev.action}</b> (${ev.confidence}%) · position at ${ev.pnl_pct >= 0 ? '+' : ''}${ev.pnl_pct}%<br>${esc(ev.reasoning || '')}`;
+  } else if (ev.type === 'news_pick') {
+    type = 't-news'; badge = 'news pick'; who = 'News Discovery';
+    body = `<strong>${ev.symbol}</strong> pulled into this cycle — ${esc(ev.reason || '')}`;
+  } else if (ev.type === 'ipo_analysis') {
+    type = 't-news'; badge = 'ipo'; who = 'IPO Analyst';
+    body = `<strong>${esc(ev.ipo?.company || '')}</strong>: <span class="verdict">${ev.recommendation} (${ev.confidence}%)</span><br>${esc(ev.reasoning || '')}`;
+  } else if (ev.type === 'cycle_started') {
+    resetStages(); startTimer();
+    type = 't-system'; badge = 'cycle'; who = `Cycle #${ev.cycle_id} started`;
+    body = `Analyzing: <strong>${(ev.symbols || []).join(', ')}</strong>`;
+  } else if (ev.type === 'cycle_report') {
+    type = 't-pm'; badge = 'cycle report'; who = `Cycle #${ev.cycle_id} summary`; important = true;
+    body = renderMd(ev.report || '');
+  } else if (ev.type === 'cycle_finished') {
+    completeStages(); stopTimer(); refresh();
+    type = 't-system'; badge = 'cycle'; who = `Cycle #${ev.cycle_id} finished`;
+    body = '';
+  } else if (ev.type === 'eod_report') {
+    refresh(); type = 't-system'; badge = 'eod'; who = 'EOD report generated'; body = '';
+  } else { body = esc(JSON.stringify(ev)); }
+
+  const div = document.createElement('div');
+  div.className = `event ${type}${important ? ' important' : ''}`;
+  div.innerHTML = `
+    <div class="head">
+      <span class="badge ${type}">${badge}</span>
+      <span class="who">${who}</span>
+      ${ev.symbol ? `<span class="sym">${ev.symbol}</span>` : ''}
+      ${ev.provider ? `<span class="muted" style="font-size:11px">via ${ev.provider}</span>` : ''}
+      <span class="meta">${ist(ev.time)} IST</span>
+    </div>
+    ${body ? `<div class="body${collapsible ? ' collapsed' : ''}">${body}</div>` : ''}
+    ${collapsible ? '<span class="more">show more ▾</span>' : ''}`;
+  if (collapsible) {
+    const more = div.querySelector('.more'), bd = div.querySelector('.body');
+    more.onclick = () => { const c = bd.classList.toggle('collapsed'); more.textContent = c ? 'show more ▾' : 'show less ▴'; };
+  }
+  feed.prepend(div);
+  while (feed.children.length > 80) feed.removeChild(feed.lastChild);
+}
 
 async function runCycle() {
   const r = await fetch('/api/run-cycle', {method: 'POST'});
@@ -178,13 +399,19 @@ async function runEod() { await fetch('/api/run-eod', {method: 'POST'}); }
 
 function connectWs() {
   const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
-  ws.onmessage = e => addEvent(JSON.parse(e.data));
+  ws.onmessage = e => {
+    const ev = JSON.parse(e.data);
+    if (ev.provider) lastProvider = ev.provider;
+    addEvent(ev);
+  };
   ws.onclose = () => setTimeout(connectWs, 3000);
 }
 
 connectWs();
 refresh();
+refreshLlms();
 setInterval(refresh, 30000);
+setInterval(refreshLlms, 60000);
 </script>
 </body>
 </html>

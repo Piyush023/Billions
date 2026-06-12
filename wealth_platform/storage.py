@@ -81,15 +81,19 @@ class Storage:
 
     @staticmethod
     def _migrate(conn):
-        """Add columns introduced after the table was first created."""
         cols = {r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()}
         if "pnl" not in cols:
             conn.execute("ALTER TABLE trades ADD COLUMN pnl REAL")
 
     @contextmanager
     def _conn(self):
-        conn = sqlite3.connect(self.db_path)
+        # WAL allows concurrent readers while one thread writes; the busy
+        # timeout makes a second writer wait instead of raising
+        # "database is locked" when the cycle loop and sentinel log at once.
+        conn = sqlite3.connect(self.db_path, timeout=15)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=15000")
         try:
             yield conn
             conn.commit()
@@ -181,10 +185,8 @@ class Storage:
         return trades
 
     def _fifo_pnl(self) -> dict:
-        """Realized P&L per SELL trade id, pairing BUYs and SELLs FIFO per symbol.
-        Used to backfill rows logged before the pnl column existed."""
         rows = self._rows("SELECT id, symbol, side, quantity, price FROM trades WHERE status='filled' ORDER BY id")
-        lots: dict = {}  # symbol -> list of [qty_remaining, buy_price]
+        lots: dict = {}
         result = {}
         for r in rows:
             sym = r["symbol"]
@@ -213,3 +215,10 @@ class Storage:
     def latest_eod_report(self):
         rows = self._rows("SELECT * FROM eod_reports ORDER BY id DESC LIMIT 1")
         return rows[0] if rows else None
+
+    def provider_counts_today(self):
+        today = str(datetime.now().date())
+        return self._rows(
+            "SELECT provider, COUNT(*) AS calls FROM agent_messages "
+            "WHERE created_at LIKE ? GROUP BY provider", (today + "%",)
+        )

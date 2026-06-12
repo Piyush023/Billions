@@ -7,9 +7,10 @@ Free hosting: deploy this on Oracle Cloud Free Tier (or run locally);
 the dashboard is a single static HTML file served by this same process.
 
 Scheduler (IST):
-  08:45  Mon-Fri  full LLM decision cycle (pre-market) — emails "Bot Started"
+  08:45  Mon-Fri  bot start email + pre-market cycle
+  09:15-14:45  continuous back-to-back cycles during market hours
   every 5 min during market hours: math-only exit management (no LLM)
-  15:30  Mon-Fri  market close — emails "Bot Stopped" with portfolio summary
+  15:30  Mon-Fri  bot stop email with portfolio summary
   15:35  Mon-Fri  EOD report -> DB + email/Telegram
 """
 
@@ -74,21 +75,59 @@ def run_cycle_blocking():
         cycle_lock.release()
 
 
-scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
-scheduler.add_job(run_cycle_blocking, CronTrigger(day_of_week="mon-fri", hour=8, minute=45), id="daily_cycle")
+# IMPORTANT: timezone must be set on each CronTrigger explicitly. A standalone
+# CronTrigger ignores the scheduler-level timezone and falls back to the
+# machine's local zone (UTC on cloud servers) — which silently shifted every
+# job by 5.5 hours on the first deployment.
+IST = "Asia/Kolkata"
+scheduler = BackgroundScheduler(timezone=IST)
+scheduler.add_job(
+    orchestrator.notify_bot_start,
+    CronTrigger(day_of_week="mon-fri", hour=8, minute=45, timezone=IST),
+    id="bot_start_notice",
+)
+scheduler.add_job(
+    run_cycle_blocking,
+    CronTrigger(day_of_week="mon-fri", hour=8, minute=46, timezone=IST),
+    id="premarket_cycle",
+)
+# Continuous mode: cycles run back-to-back during market hours — as soon as
+# one completes, the next starts (60s breather between them to be polite to
+# data APIs). Stock rotation in select_symbols() makes each cycle cover
+# different stocks, so a full day sweeps most of the NIFTY-100 universe.
+_loop_stop = threading.Event()
+
+
+def continuous_cycle_loop():
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo
+
+    cooldown = orchestrator.config.get("cycle_cooldown_seconds", 60)
+    while not _loop_stop.is_set():
+        now = _dt.now(ZoneInfo(IST))
+        in_window = (
+            now.weekday() < 5
+            and (now.hour, now.minute) >= (9, 15)
+            and (now.hour, now.minute) <= (14, 45)  # last start leaves room to finish pre-close
+        )
+        if in_window:
+            run_cycle_blocking()
+            _loop_stop.wait(cooldown)
+        else:
+            _loop_stop.wait(60)
 scheduler.add_job(
     orchestrator.manage_exits,
-    CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*/5"),
+    CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*/5", timezone=IST),
     id="exit_management",
 )
 scheduler.add_job(
     orchestrator.notify_bot_stop,
-    CronTrigger(day_of_week="mon-fri", hour=15, minute=30),
+    CronTrigger(day_of_week="mon-fri", hour=15, minute=30, timezone=IST),
     id="bot_stop_notice",
 )
 scheduler.add_job(
     orchestrator.generate_eod_report,
-    CronTrigger(day_of_week="mon-fri", hour=15, minute=35),
+    CronTrigger(day_of_week="mon-fri", hour=15, minute=35, timezone=IST),
     id="eod_report",
 )
 
@@ -97,8 +136,23 @@ scheduler.add_job(
 async def lifespan(app: FastAPI):
     bus.loop = asyncio.get_running_loop()
     scheduler.start()
-    logger.info("Scheduler started (daily cycle 08:45 IST, exits */5min, EOD 15:35 IST)")
+    for job in scheduler.get_jobs():
+        logger.info("Scheduled job %s — next run: %s", job.id, job.next_run_time)
+    if orchestrator.config.get("continuous_cycles", True):
+        threading.Thread(target=continuous_cycle_loop, daemon=True, name="cycle-loop").start()
+        logger.info("Continuous cycle loop started (back-to-back 09:15-14:45 IST, %ss cooldown)",
+                    orchestrator.config.get("cycle_cooldown_seconds", 60))
+    if orchestrator.config.get("portfolio_sentinel", True):
+        from wealth_platform.portfolio_monitor import PortfolioSentinel
+
+        sentinel = PortfolioSentinel(orchestrator)
+        interval = orchestrator.config.get("sentinel_interval_minutes", 15) * 60
+        threading.Thread(
+            target=sentinel.run_forever, args=(_loop_stop, interval),
+            daemon=True, name="portfolio-sentinel",
+        ).start()
     yield
+    _loop_stop.set()
     scheduler.shutdown(wait=False)
 
 
@@ -124,14 +178,50 @@ def portfolio():
         mf = orchestrator.mf_manager.portfolio_snapshot()
     except Exception:  # noqa: BLE001
         mf = {"holdings": [], "total_value": 0}
+    starting_capital = getattr(orchestrator.broker, "starting_cash", orchestrator.config.get("capital", 15000))
+    total_value = equity_value + mf.get("total_value", 0)
     return {
         "broker": orchestrator.broker.name,
         "cash": funds.available_cash,
         "positions": positions,
+        "stocks_value": round(sum(p["value"] for p in positions.values()), 2),
         "equity_value": round(equity_value, 2),
         "mutual_funds": mf,
-        "total_value": round(equity_value + mf.get("total_value", 0), 2),
+        "total_value": round(total_value, 2),
+        "starting_capital": starting_capital,
+        "pnl": round(total_value - starting_capital, 2),
+        "pnl_pct": round((total_value / starting_capital - 1) * 100, 2) if starting_capital else 0,
     }
+
+
+# Free-tier limits (approximate, as published by each provider mid-2026)
+PROVIDER_LIMITS = {
+    "groq": {"rpm": 30, "tpm": "12K", "daily": "100K tokens/day"},
+    "cerebras": {"rpm": 30, "tpm": "60K", "daily": "1M tokens/day"},
+    "gemini": {"rpm": 10, "tpm": "250K", "daily": "250 req/day"},
+    "openrouter": {"rpm": 20, "tpm": "-", "daily": "~50 req/day (free models)"},
+    "ollama": {"rpm": "-", "tpm": "-", "daily": "unlimited (local)"},
+    "anthropic": {"rpm": 50, "tpm": "50K", "daily": "pay-per-use"},
+}
+
+
+@app.get("/api/llm-status")
+def llm_status():
+    try:
+        order = orchestrator.llm._provider_order(None)
+    except Exception:  # noqa: BLE001
+        order = []
+    counts = {r["provider"]: r["calls"] for r in orchestrator.storage.provider_counts_today()}
+    return [
+        {
+            "provider": p,
+            "model": orchestrator.llm._model_for(p),
+            "calls_today": counts.get(p, 0),
+            "limits": PROVIDER_LIMITS.get(p, {}),
+            "priority": i + 1,
+        }
+        for i, p in enumerate(order)
+    ]
 
 
 @app.get("/api/history")

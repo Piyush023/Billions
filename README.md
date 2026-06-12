@@ -1,173 +1,73 @@
-# 🤖 Billions Trading Bot
+# 🏦 Billions — AI Wealth Platform
 
-Advanced algorithmic trading bot for Zerodha with multiple strategies, risk management, and automated portfolio management.
+An autonomous, free-tier AI wealth manager for Indian markets: a 12-agent LLM
+decision pipeline (analysts → bull/bear debate → trader → risk debate →
+portfolio manager), multi-broker execution (paper / Groww / Zerodha), mutual
+fund advisory, IPO analysis, and a live web dashboard — at a running cost of
+**₹0–80/month**.
 
-## 🚀 Quick Start
+## Repository structure
 
-### 1. Install Dependencies
-```bash
-pip install -r requirements.txt
+```
+Billions/
+├── wealth_platform/          ⭐ THE ACTIVE PROJECT — everything runs from here
+│   ├── llm/                  Free-tier LLM router (Groq → Gemini → Ollama → Haiku)
+│   ├── agents/               12 LLM agents + memory + trade-history RAG
+│   ├── brokers/              paper (default) / Groww / Zerodha adapters
+│   ├── investments/          Mutual funds (AMFI) + IPO analysis (NSE)
+│   ├── orchestrator.py       The daily decision cycle
+│   ├── server.py             FastAPI + scheduler + WebSocket
+│   ├── storage.py            SQLite audit trail
+│   └── dashboard.html        The web UI
+│
+├── legacy_bot/               🗄 OLD quantitative bot (pre-LLM era). Not part of
+│                             the platform; kept because the platform optionally
+│                             reuses its stock screener. Don't run it directly.
+│
+├── docs/
+│   ├── PLATFORM_GUIDE.md     How every flow works + complete running instructions
+│   ├── DEPLOYMENT.md         Oracle Cloud Free Tier deployment guide
+│   └── DEPENDENCIES_NEEDED.md  Keys/accounts you must provide
+│
+├── deploy/                   systemd unit files for the server
+├── data/                     Runtime state: SQLite DB, paper portfolio, agent
+│                             memory (created automatically; never committed)
+├── .env.example              Template for your secrets — copy to .env
+├── wealth_config.json        Platform settings (broker, capital, mode — no secrets)
+├── requirements_platform.txt Python dependencies
+└── start_platform.sh         Starts platform (+ optional nodemailer) together
 ```
 
-**For TA-Lib issues:**
-- **macOS**: `brew install ta-lib && pip install TA-Lib`
-- **Windows**: Download from [here](https://www.lfd.uci.edu/~gohlke/pythonlibs/) then `pip install TA_Lib-0.4.XX-cpXX-cpXXm-win_amd64.whl`
-- **Linux**: `sudo apt-get install libta-lib-dev && pip install TA-Lib`
-
-### 2. Setup Configuration
-```bash
-python setup.py
-```
-This will guide you through:
-- ✅ Dependency checks
-- ⚙️ API configuration  
-- 📱 Telegram setup (optional)
-
-### 3. Authenticate with Zerodha
-```bash
-python zerodha_auth.py
-```
-- Opens browser for login
-- Handles 2FA automatically
-- Saves access token
-
-### 4. Test Everything
-```bash
-python billions.py test
-```
-
-### 5. Start Trading
-```bash
-python billions.py
-```
-
-## 📊 Features
-
-### Trading Strategies
-- **Mean Reversion**: RSI + Bollinger Bands
-- **Momentum**: Moving averages + MACD
-- **Multi-timeframe analysis**
-
-### Risk Management
-- 🛑 **5% Stop Loss** on all positions
-- 🎯 **8% Take Profit** targets
-- 📊 **Max 3 positions** simultaneously
-- ⚠️ **3% daily loss limit**
-- 💰 **Max 20% per position**
-
-### Automation
-- 🔍 **Market scanning** every 5 minutes
-- 📱 **Telegram notifications** for all trades
-- 📊 **Daily reports** at 6 PM
-- 🤖 **Fully automated** execution
-
-### Monitoring
-- 📈 **Real-time P&L tracking**
-- 📱 **Live trade alerts**
-- 📊 **Performance analytics**
-- 🗃️ **Comprehensive logging**
-
-## ⚙️ Configuration
-
-Your `config.json` is already configured with:
-
-```json
-{
-  "capital": {
-    "total_capital": 10000,
-    "max_position_size": 0.2,
-    "daily_loss_limit": 0.03,
-    "stop_loss_pct": 0.05,
-    "take_profit_pct": 0.08
-  },
-  "strategies": {
-    "mean_reversion": { "active": true },
-    "momentum": { "active": true }
-  },
-  "trading_symbols": [
-    "RELIANCE", "TCS", "HDFCBANK", "INFY", 
-    "HINDUNILVR", "ICICIBANK", "KOTAKBANK"
-  ]
-}
-```
-
-## 📱 Telegram Setup
-
-1. Create bot with @BotFather
-2. Get bot token
-3. Message your bot, then visit:
-   `https://api.telegram.org/bot<TOKEN>/getUpdates`
-4. Find your `chat_id`
-5. Update `config.json`
-
-## 🔧 Commands
+## Quick start
 
 ```bash
-# Regular trading
-python billions.py
-
-# Test mode (no real trades)
-python billions.py test
-
-# Setup assistant
-python setup.py
-
-# Re-authenticate
-python zerodha_auth.py
+python3 -m venv .venv
+.venv/bin/pip install -r requirements_platform.txt
+cp .env.example .env && nano .env        # add GROQ_API_KEY at minimum
+.venv/bin/uvicorn wealth_platform.server:app --host 0.0.0.0 --port 8000
+# open http://localhost:8000 → click "▶ Run Cycle"
 ```
 
-## 📊 Expected Performance
+Starts in **paper trading mode** — no real money moves until you change
+`"broker"` in `wealth_config.json`. Full instructions: [docs/PLATFORM_GUIDE.md](docs/PLATFORM_GUIDE.md).
 
-With ₹10,000 capital:
-- **Month 1**: 2-5% (₹200-500) - Learning phase
-- **Month 2**: 5-8% (₹500-800) - Optimization phase  
-- **Month 3+**: 8-12% (₹800-1,200) - Mature operation
-
-## 🚨 Risk Warning
-
-- Start with small capital (₹10K-25K)
-- Monitor daily for first week
-- Never risk more than you can afford to lose
-- Past performance doesn't guarantee future results
-
-## 📁 File Structure
+## The decision cycle (daily, 08:45 IST, automatic)
 
 ```
-trading_bot/
-├── billions.py           # Main trading bot
-├── zerodha_auth.py      # Authentication system
-├── setup.py             # Setup assistant
-├── config.json          # Configuration
-├── requirements.txt     # Dependencies
-└── logs/               # Trading logs
+Screener picks 3 stocks
+  → 4 analyst agents (technical, fundamentals, news, sentiment)
+  → bull vs bear researcher debate → research manager verdict
+  → trader proposes position (positional, 2-12 week holds, CNC only)
+  → aggressive/conservative/neutral risk debate
+  → portfolio manager approves/rejects (with RAG over past trade records)
+  → approved orders → broker · everything logged to SQLite + live dashboard
+  → 15:35 IST: LLM end-of-day report → email
 ```
 
-## 🛠️ Troubleshooting
+## Safety model
 
-**Authentication Error**:
-```bash
-python zerodha_auth.py
-```
-
-**Missing Dependencies**:
-```bash
-pip install -r requirements.txt
-```
-
-**Strategy Not Working**:
-- Check market hours (9:15 AM - 3:30 PM)
-- Verify sufficient capital
-- Review logs in `logs/` folder
-
-**No Trades Executing**:
-- Ensure market is open
-- Check risk limits
-- Verify access token validity
-
-## 📞 Support
-
-Check logs in `logs/` directory for detailed error messages.
-
-## ⚖️ Legal Disclaimer
-
-This software is for educational purposes. Trading involves substantial risk. Always do your own research and consider consulting with a financial advisor. # Billions
+- Paper mode by default; live trading is an explicit config change
+- Two LLM gates + hard-coded capital rules + no-short guard in code
+- Unparseable LLM output = automatic rejection
+- Stops/targets are pure math — they work even if every LLM is down
+- Full audit trail of every agent report, decision, and order

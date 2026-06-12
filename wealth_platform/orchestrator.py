@@ -42,6 +42,18 @@ logger = logging.getLogger("wealth_platform.orchestrator")
 
 CONFIG_PATH = "wealth_config.json"
 
+AGGRESSIVE_STYLE = (
+    "DESK PROFILE: AGGRESSIVE GROWTH. This desk's mandate is maximum capital velocity: "
+    "prefer decisive action over caution, prioritize high-momentum setups with near-term "
+    "catalysts, accept elevated volatility, and favor quick 4-8% swing gains with tight "
+    "stops over slow positional grinds. Idle cash is a cost — capital should always be "
+    "working in the best available opportunity. You may still reject genuinely bad setups, "
+    "but when evidence is mixed, lean toward action with controlled size rather than HOLD. "
+    "Realism constraint: target setups with honest 3-10% upside over days to weeks; do NOT "
+    "fabricate conviction or inflate confidence numbers to force trades — bad trades at "
+    "Rs.60/round-trip cost compound against the goal."
+)
+
 
 class WealthOrchestrator:
     def __init__(self, config_path: str = CONFIG_PATH, on_event: Optional[Callable[[dict], None]] = None):
@@ -58,6 +70,17 @@ class WealthOrchestrator:
         self.ipo_manager = IPOManager(self.llm)
         self.notifier = Notifier()
         self.history_rag = TradeHistoryRAG(self.storage)
+        from wealth_platform.coordination import TRADE_LOCK, SharedDesk
+        from wealth_platform.news_discovery import NewsStockDiscovery
+        from wealth_platform.screener import BuiltInScreener
+
+        self.screener = BuiltInScreener()
+        self.news_discovery = NewsStockDiscovery(self.llm)
+        self.trade_lock = TRADE_LOCK
+        self.desk = SharedDesk(exit_cooloff_days=self.config.get("exit_cooloff_days", 3))
+        self.style_suffix = AGGRESSIVE_STYLE if self.config.get("strategy_profile") == "aggressive" else ""
+        self._analyzed_on: Optional[str] = None  # date string
+        self._analyzed_today: set = set()
         self._current_cycle_id: Optional[int] = None
         self._current_symbol: str = ""
 
@@ -98,19 +121,51 @@ class WealthOrchestrator:
     # ------------------------------------------------------------------
 
     def select_symbols(self) -> List[str]:
-        """Use the existing dynamic screener when available; fall back to config list."""
-        try:
-            from dynamic_stock_screener import DynamicStockScreener
+        """Pick the next batch from the screener ranking, rotating through the
+        day: stocks already analyzed today are skipped so consecutive cycles
+        cover different parts of the market instead of repeating the same 3."""
+        from datetime import date as _date
 
-            screener = DynamicStockScreener()
-            results = screener.quick_screen()
-            if results:
-                top = [r["symbol"].replace(".NS", "") for r in results[: self.config.get("max_stocks_per_cycle", 3)]]
-                logger.info("Screener selected: %s", top)
-                return top
+        today = str(_date.today())
+        if self._analyzed_on != today:
+            self._analyzed_on = today
+            self._analyzed_today = set()
+
+        n = self.config.get("max_stocks_per_cycle", 3)
+
+        # News-driven discovery: stocks making headlines (including outside
+        # the NIFTY-100 universe) get priority slots in the batch.
+        batch: List[str] = []
+        if self.config.get("news_discovery", True):
+            try:
+                news_slots = self.config.get("news_slots", 1)
+                for item in self.news_discovery.discover():
+                    if item["symbol"] not in self._analyzed_today and len(batch) < news_slots:
+                        batch.append(item["symbol"])
+                        self._emit("news_pick", {"symbol": item["symbol"], "reason": item.get("reason", "")})
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("News discovery failed (%s)", exc)
+
+        ranked: List[str] = []
+        try:
+            ranked = self.screener.ranked_symbols(top_n=40)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Screener unavailable (%s); using config watchlist", exc)
-        return self.config.get("watchlist", ["RELIANCE", "HDFCBANK", "TCS"])[: self.config.get("max_stocks_per_cycle", 3)]
+            logger.warning("Built-in screener failed (%s)", exc)
+        if not ranked:
+            ranked = self.config.get("watchlist", ["RELIANCE", "HDFCBANK", "TCS"])
+
+        # Exclude symbols the desk exited recently (cool-off) so the buy side
+        # can't re-enter what the sentinel just sold.
+        ranked = [s for s in ranked if not self.desk.in_exit_cooloff(s)]
+        batch = [s for s in batch if not self.desk.in_exit_cooloff(s)]
+        fresh = [s for s in ranked if s not in self._analyzed_today and s not in batch]
+        if not fresh and not batch:  # whole ranking covered today — start over
+            self._analyzed_today = set()
+            fresh = ranked
+        batch.extend(fresh[: n - len(batch)])
+        self._analyzed_today.update(batch)
+        logger.info("Cycle batch: %s (analyzed today: %d)", batch, len(self._analyzed_today))
+        return batch
 
     # ------------------------------------------------------------------
     # The full decision cycle for one stock
@@ -121,25 +176,31 @@ class WealthOrchestrator:
         cb = self._on_agent_output
         self._emit("stage", {"symbol": symbol, "stage": "analysts"})
 
-        technical = TechnicalAnalyst(self.llm, cb).analyze(symbol)
-        fundamentals = FundamentalsAnalyst(self.llm, cb).analyze(symbol)
-        news = NewsAnalyst(self.llm, cb).analyze(symbol)
-        sentiment = SentimentAnalyst(self.llm, cb).analyze(symbol, news.report, technical.report)
+        technical = TechnicalAnalyst(self.llm, cb, self.style_suffix).analyze(symbol)
+        fundamentals = FundamentalsAnalyst(self.llm, cb, self.style_suffix).analyze(symbol)
+        news = NewsAnalyst(self.llm, cb, self.style_suffix).analyze(symbol)
+        sentiment = SentimentAnalyst(self.llm, cb, self.style_suffix).analyze(symbol, news.report, technical.report)
 
+        # Cap each report in the combined context: it gets re-sent to the
+        # debate (twice per round), research manager, trader, and PM — on
+        # free tiers with daily TOKEN caps, uncapped reports burn the whole
+        # day's budget in one or two cycles.
+        cap = self.config.get("report_context_chars", 1800)
         analyst_reports = (
-            f"=== TECHNICAL ===\n{technical.report}\n\n=== FUNDAMENTALS ===\n{fundamentals.report}\n\n"
-            f"=== NEWS ===\n{news.report}\n\n=== SENTIMENT ===\n{sentiment.report}"
+            f"=== TECHNICAL ===\n{technical.report[:cap]}\n\n=== FUNDAMENTALS ===\n{fundamentals.report[:cap]}\n\n"
+            f"=== NEWS ===\n{news.report[:cap]}\n\n=== SENTIMENT ===\n{sentiment.report[:cap]}"
         )
 
         self._emit("stage", {"symbol": symbol, "stage": "debate"})
         transcript = run_debate(
-            BullResearcher(self.llm, cb), BearResearcher(self.llm, cb),
+            BullResearcher(self.llm, cb, self.style_suffix), BearResearcher(self.llm, cb, self.style_suffix),
             analyst_reports, rounds=self.config.get("debate_rounds", 1),
         )
-        research_decision = ResearchManager(self.llm, cb).decide(symbol, analyst_reports, transcript)
+        research_decision = ResearchManager(self.llm, cb, self.style_suffix).decide(symbol, analyst_reports, transcript)
         self._emit("research_verdict", {"symbol": symbol, "verdict": research_decision})
 
-        if research_decision.get("rating") in ("HOLD",) or research_decision.get("confidence", 0) < 40:
+        gate = self.config.get("research_confidence_gate", 40)
+        if research_decision.get("rating") in ("HOLD",) or research_decision.get("confidence", 0) < gate:
             self.storage.log_decision(self._current_cycle_id, symbol, research_decision.get("rating", "HOLD"),
                                       {}, {"decision": "SKIPPED", "reasoning": "Research verdict below action threshold"}, False)
             return {"symbol": symbol, "action": "none", "research": research_decision}
@@ -150,7 +211,7 @@ class WealthOrchestrator:
         positions = {s: p.quantity for s, p in self.broker.get_positions().items()}
 
         history_context = self.history_rag.build_context(symbol)
-        proposal = TraderAgent(self.llm, cb).propose(
+        proposal = TraderAgent(self.llm, cb, self.style_suffix).propose(
             symbol, research_decision,
             analyst_reports[:3000] + "\n\n" + history_context,
             quote.last_price, funds.available_cash, positions,
@@ -179,13 +240,15 @@ class WealthOrchestrator:
             f"Broker: {self.broker.name}"
         )
         risk_transcript = run_risk_debate(
-            AggressiveDebator(self.llm, cb), ConservativeDebator(self.llm, cb),
-            NeutralDebator(self.llm, cb), proposal, portfolio_context,
+            AggressiveDebator(self.llm, cb, self.style_suffix), ConservativeDebator(self.llm, cb, self.style_suffix),
+            NeutralDebator(self.llm, cb, self.style_suffix), proposal, portfolio_context,
         )
 
         self._emit("stage", {"symbol": symbol, "stage": "portfolio_manager"})
-        pm_decision = PortfolioManagerAgent(self.llm, cb).decide(
-            symbol, research_decision, proposal, risk_transcript, portfolio_context,
+        pm_decision = PortfolioManagerAgent(self.llm, cb, self.style_suffix).decide(
+            symbol, research_decision, proposal, risk_transcript,
+            portfolio_context + "\n\nDESK BRIEFING (from the sentinel agent watching holdings):\n"
+            + self.desk.pm_briefing(),
             self.memory.lessons() + "\n\n" + history_context,
         )
         approved = pm_decision.get("decision") == "APPROVE"
@@ -200,13 +263,60 @@ class WealthOrchestrator:
                     "proposal": proposal, "pm": pm_decision}
 
         quantity = int(pm_decision.get("adjusted_quantity") or proposal["quantity"])
-        # Snapshot avg buy price before the order mutates the position, so a
-        # SELL can record its realized P&L.
+        # Critical section: the sentinel may have traded while the agents were
+        # debating (minutes). Re-validate funds/positions and fill atomically
+        # under the shared trade lock so the two loops can't double-spend.
         avg_before = 0.0
         if proposal["action"] == "SELL":
             pos = self.broker.get_positions().get(symbol)
             avg_before = pos.average_price if pos else 0.0
-        result = self.broker.place_order(symbol=symbol, quantity=quantity, side=proposal["action"], product="CNC")
+        with self.trade_lock:
+            # PM-approved capital rotation: sell a weaker holding to fund this buy.
+            rotate_out = pm_decision.get("fund_by_selling")
+            if rotate_out and proposal["action"] == "BUY":
+                held = self.broker.get_positions().get(rotate_out)
+                if held and held.quantity > 0:
+                    sell_result = self.broker.place_order(
+                        symbol=rotate_out, quantity=held.quantity, side="SELL", product="CNC")
+                    change = (held.last_price / held.average_price - 1) * 100 if held.average_price else 0
+                    rotate_fill = sell_result.filled_price or held.last_price
+                    rotate_pnl = (rotate_fill - held.average_price) * held.quantity if sell_result.success else None
+                    self.storage.log_trade(
+                        self._current_cycle_id, rotate_out, "SELL", held.quantity,
+                        rotate_fill, self.broker.name,
+                        sell_result.order_id or "", "filled" if sell_result.success else "failed",
+                        f"PM rotation: freeing capital for {symbol}", pnl=rotate_pnl)
+                    if sell_result.success:
+                        self.memory.record_outcome(rotate_out, change, f"(rotated into {symbol})")
+                        self.desk.record_exit(rotate_out, f"rotated into {symbol}", change)
+                        self._emit("exit", {"symbol": rotate_out,
+                                            "reason": f"PM rotation → funding {symbol}",
+                                            "pnl_pct": round(change, 2),
+                                            "pnl": round(rotate_pnl, 2) if rotate_pnl is not None else None})
+                        self.notifier.send(
+                            f"🔄 Rotation SELL: {held.quantity} {rotate_out} ({change:+.1f}%)",
+                            f"Sold {held.quantity} {rotate_out} @ Rs.{rotate_fill:.2f} to fund {symbol} "
+                            f"({self.broker.name} mode)\n"
+                            f"Realized P&L: Rs.{rotate_pnl:+,.2f}" if rotate_pnl is not None else "",
+                        )
+                    else:
+                        self.notifier.send(
+                            f"❌ Rotation SELL FAILED: {rotate_out}",
+                            f"Could not free capital for {symbol}: {sell_result.message}",
+                        )
+            funds_now = self.broker.get_funds()
+            if proposal["action"] == "BUY":
+                est_cost = quantity * quote.last_price * 1.005  # + costs headroom
+                if est_cost > funds_now.available_cash:
+                    reason = (f"stale-funds guard: needs Rs.{est_cost:.0f} but only "
+                              f"Rs.{funds_now.available_cash:.0f} available now (sentinel may have traded)")
+                    self.storage.log_decision(self._current_cycle_id, symbol, research_decision.get("rating"),
+                                              proposal, {"decision": "ABORTED", "reasoning": reason}, False)
+                    self._emit("trade_executed", {"symbol": symbol, "side": proposal["action"],
+                                                  "quantity": quantity, "success": False, "message": reason})
+                    return {"symbol": symbol, "action": "aborted", "research": research_decision,
+                            "proposal": proposal, "pm": pm_decision}
+            result = self.broker.place_order(symbol=symbol, quantity=quantity, side=proposal["action"], product="CNC")
         fill_price = result.filled_price or quote.last_price
         trade_pnl = None
         if proposal["action"] == "SELL" and result.success and avg_before:
@@ -217,6 +327,9 @@ class WealthOrchestrator:
             result.order_id or "", "filled" if result.success else "failed",
             proposal.get("reasoning", ""), pnl=trade_pnl,
         )
+        if result.success and proposal["action"] == "BUY":
+            self.desk.record_entry(symbol, proposal.get("reasoning", ""),
+                                   proposal.get("stop_loss", 0), proposal.get("take_profit", 0))
         self._emit("trade_executed", {
             "symbol": symbol, "side": proposal["action"], "quantity": quantity,
             "success": result.success, "message": result.message,
@@ -255,7 +368,8 @@ class WealthOrchestrator:
             elif change >= target_pct:
                 reason = f"target hit ({change:.1f}%)"
             if reason:
-                result = self.broker.place_order(symbol=symbol, quantity=pos.quantity, side="SELL", product="CNC")
+                with self.trade_lock:
+                    result = self.broker.place_order(symbol=symbol, quantity=pos.quantity, side="SELL", product="CNC")
                 fill_price = result.filled_price or pos.last_price
                 exit_pnl = (fill_price - pos.average_price) * pos.quantity if result.success else None
                 self.storage.log_trade(None, symbol, "SELL", pos.quantity, fill_price,
@@ -263,6 +377,8 @@ class WealthOrchestrator:
                                        "filled" if result.success else "failed", reason,
                                        pnl=exit_pnl)
                 self.memory.record_outcome(symbol, change, f"({reason})")
+                if result.success:
+                    self.desk.record_exit(symbol, reason, change)
                 self._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2),
                                     "pnl": round(exit_pnl, 2) if exit_pnl is not None else None})
                 if result.success:
@@ -281,8 +397,11 @@ class WealthOrchestrator:
     # Full daily cycle + EOD report
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Bot lifecycle notifications (scheduled once/day — not per cycle)
+    # ------------------------------------------------------------------
+
     def _portfolio_summary(self) -> str:
-        """Compact text snapshot used in bot start/stop emails."""
         try:
             funds = self.broker.get_funds()
             positions = self.broker.get_positions()
@@ -290,7 +409,10 @@ class WealthOrchestrator:
             if positions:
                 lines.append("Open positions:")
                 for s, p in positions.items():
-                    lines.append(f"  {s}: {p.quantity} @ Rs.{p.average_price:.2f} (LTP Rs.{p.last_price:.2f}, P&L Rs.{p.pnl:+,.2f})")
+                    lines.append(
+                        f"  {s}: {p.quantity} @ Rs.{p.average_price:.2f} "
+                        f"(LTP Rs.{p.last_price:.2f}, P&L Rs.{p.pnl:+,.2f})"
+                    )
             else:
                 lines.append("Open positions: none")
             return "\n".join(lines)
@@ -298,7 +420,6 @@ class WealthOrchestrator:
             return f"Portfolio snapshot unavailable: {exc}"
 
     def notify_bot_start(self):
-        """Morning notification: trading bot is up and starting the day."""
         self._emit("bot_start", {})
         self.notifier.send(
             "🤖 Bot Started — trading day beginning",
@@ -307,7 +428,6 @@ class WealthOrchestrator:
         )
 
     def notify_bot_stop(self):
-        """Afternoon notification: market closed, bot done for the day."""
         self._emit("bot_stop", {})
         self.notifier.send(
             "🛑 Bot Stopped — trading day over",
@@ -316,7 +436,6 @@ class WealthOrchestrator:
         )
 
     def run_daily_cycle(self) -> dict:
-        self.notify_bot_start()
         symbols = self.select_symbols()
         self._current_cycle_id = self.storage.start_cycle(symbols)
         self._emit("cycle_started", {"cycle_id": self._current_cycle_id, "symbols": symbols})
@@ -339,11 +458,45 @@ class WealthOrchestrator:
                 logger.exception("IPO scan failed")
 
         self._snapshot()
-        summary = json.dumps({"stocks": [{"symbol": r["symbol"], "action": r["action"]} for r in results],
-                              "ipos_analyzed": len(ipo_analyses)})
-        self.storage.finish_cycle(self._current_cycle_id, summary)
-        self._emit("cycle_finished", {"cycle_id": self._current_cycle_id, "summary": summary})
+        report = self._build_cycle_report(results, ipo_analyses)
+        self.storage.finish_cycle(self._current_cycle_id, report)
+        self._emit("cycle_report", {"cycle_id": self._current_cycle_id, "report": report})
+        self._emit("cycle_finished", {"cycle_id": self._current_cycle_id})
         return {"cycle_id": self._current_cycle_id, "results": results, "ipos": ipo_analyses}
+
+    def _build_cycle_report(self, results: List[dict], ipo_analyses: List[dict]) -> str:
+        """Human-readable per-cycle summary — assembled deterministically (no LLM cost)."""
+        lines = []
+        executed = [r for r in results if r.get("action") == "executed"]
+        for r in results:
+            symbol = r.get("symbol", "?")
+            research = r.get("research", {}) or {}
+            proposal = r.get("proposal", {}) or {}
+            pm = r.get("pm", {}) or {}
+            rating = research.get("rating", "-")
+            conf = research.get("confidence", "-")
+            action = r.get("action", "?")
+            outcome = {
+                "executed": f"**TRADED** — {proposal.get('action', '')} {proposal.get('quantity', '')} filled",
+                "rejected": f"PM rejected — {pm.get('reasoning', '')[:140]}",
+                "aborted": "aborted at execution (stale funds guard)",
+                "failed": "order failed at broker",
+                "none": "no trade — " + (proposal.get("reasoning") or research.get("rationale") or "below conviction gate")[:140],
+                "error": f"errored: {r.get('error', '')[:100]}",
+            }.get(action, action)
+            lines.append(f"- **{symbol}**: research {rating} ({conf}%) → {outcome}")
+        funds = self.broker.get_funds()
+        positions = self.broker.get_positions()
+        lines.append("")
+        lines.append(f"**Outcome:** {len(executed)} trade(s) executed, "
+                     f"{len(results) - len(executed)} passed. "
+                     f"Cash now Rs.{funds.available_cash:,.0f}, open positions: "
+                     f"{', '.join(positions.keys()) or 'none'}.")
+        if ipo_analyses:
+            for a in ipo_analyses:
+                lines.append(f"- IPO {a.get('ipo', {}).get('company', '?')}: "
+                             f"{a.get('recommendation', '?')} ({a.get('confidence', 0)}%)")
+        return "\n".join(lines)
 
     def _snapshot(self):
         funds = self.broker.get_funds()

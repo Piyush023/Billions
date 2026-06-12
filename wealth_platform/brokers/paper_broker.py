@@ -8,6 +8,7 @@ here until you explicitly switch to a live broker in wealth_config.json.
 import json
 import logging
 import os
+import threading
 import uuid
 from typing import Dict, Optional
 
@@ -34,6 +35,9 @@ class PaperBroker(BaseBroker):
         self.cash = starting_cash
         self.positions: Dict[str, Position] = {}
         self.trade_log = []
+        # Orders mutate cash+positions+state file; two threads (cycle loop
+        # and sentinel) trade concurrently, so fills must be atomic.
+        self._order_lock = threading.Lock()
         self._load()
 
     def connect(self) -> bool:
@@ -60,6 +64,10 @@ class PaperBroker(BaseBroker):
         if quantity <= 0:
             return OrderResult(success=False, message="Quantity must be positive")
         fill_price = price if (order_type == "LIMIT" and price) else self.get_quote(symbol).last_price
+        with self._order_lock:
+            return self._fill(symbol, quantity, side, fill_price)
+
+    def _fill(self, symbol: str, quantity: int, side: str, fill_price: float) -> OrderResult:
         gross = fill_price * quantity
         costs = BROKERAGE_FLAT + gross * (STT_RATE + OTHER_CHARGES_RATE)
 

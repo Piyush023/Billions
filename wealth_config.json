@@ -3,17 +3,32 @@
   "trading_mode": "positional",
   "capital": 15000,
   "max_stocks_per_cycle": 3,
+  "continuous_cycles": true,
   "debate_rounds": 1,
-  "stop_loss_pct": 7.0,
-  "take_profit_pct": 14.0,
+  "stop_loss_pct": 4.0,
+  "take_profit_pct": 6.0,
   "ipo_enabled": true,
-  "watchlist": ["RELIANCE", "HDFCBANK", "TCS", "INFY", "ICICIBANK"],
+  "watchlist": [
+    "RELIANCE",
+    "HDFCBANK",
+    "TCS",
+    "INFY",
+    "ICICIBANK"
+  ],
   "mutual_funds": {
     "monthly_sip_budget": 2000,
     "risk_profile": "moderate"
   },
   "_notes": {
     "broker": "paper | zerodha | groww. Always starts in paper. Switch to groww (free API) only after paper trading proves profitable.",
-    "credentials": "NO secrets in this file. All keys go in .env / environment variables — see docs/DEPENDENCIES_NEEDED.md"
-  }
+    "credentials": "NO secrets in this file. All keys go in .env / environment variables \u2014 see docs/DEPENDENCIES_NEEDED.md"
+  },
+  "cycle_cooldown_seconds": 60,
+  "news_discovery": true,
+  "news_slots": 1,
+  "portfolio_sentinel": true,
+  "sentinel_interval_minutes": 10,
+  "exit_cooloff_days": 1,
+  "strategy_profile": "aggressive",
+  "research_confidence_gate": 35
 }

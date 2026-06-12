@@ -1,4 +1,0 @@
-2025-08-07 00:42:26,418 - __main__ - ERROR - ❌ Access token expired or invalid
-2025-08-07 00:42:26,418 - __main__ - INFO - 💡 Please run 'python zerodha_auth.py' to generate a new access token
-2025-08-07 00:42:26,418 - __main__ - INFO - 📝 Then update your .env file with the new ZERODHA_ACCESS_TOKEN
-2025-08-07 00:42:26,418 - __main__ - ERROR - ❌ Failed to initialize Zerodha connection: Incorrect `api_key` or `access_token`.

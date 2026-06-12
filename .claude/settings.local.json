@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'Continuous cycles: back-to-back instead of hourly interval *)",
+      "Bash(git push *)",
+      "Bash(ssh -o BatchMode=yes ubuntu@140.238.250.128 ' *)",
+      "Bash(git commit -q -m 'Dashboard redesign: full-width feed, IST times, markdown rendering, sentinel panel, LLM status *)",
+      "Bash(ssh -o BatchMode=yes ubuntu@140.238.250.128 \"cd ~/Billions && git pull -q && sudo systemctl restart wealth-platform && sleep 3 && systemctl is-active wealth-platform && curl -s localhost:8000/api/llm-status | head -c 200\")"
+    ]
+  }
+}

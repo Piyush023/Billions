@@ -3,7 +3,7 @@
 Configure in .env (defaults point at the local mailer service):
   EMAIL_SERVICE_URL=http://localhost:3010/send-email   # your nodemailer endpoint
   EMAIL_TO=piyushkhurana23@gmail.com                   # recipient
-  EMAIL_SERVICE_API_KEY=...                            # optional; sent as Bearer token
+  EMAIL_SERVICE_API_KEY=...                        # optional; sent as Bearer token
 
 Expected nodemailer endpoint contract (adjust PAYLOAD_STYLE if yours differs):
   POST {EMAIL_SERVICE_URL}

@@ -163,6 +163,7 @@ class PortfolioSentinel:
     def _exit(self, symbol: str, pos, reason: str):
         # Shared trade lock: a fill here is atomic w.r.t. the buy-side cycle
         # loop's funds re-validation, so the desk can't double-spend cash.
+        avg_before = pos.average_price
         with self.orch.trade_lock:
             current = self.orch.broker.get_positions().get(symbol)
             if not current or current.quantity <= 0:
@@ -172,21 +173,31 @@ class PortfolioSentinel:
                 symbol=symbol, quantity=current.quantity, side="SELL", product="CNC"
             )
         change = (pos.last_price / pos.average_price - 1) * 100 if pos.average_price else 0
+        fill_price = result.filled_price or pos.last_price
+        exit_pnl = (fill_price - avg_before) * pos.quantity if result.success else None
         self.orch.storage.log_trade(
-            None, symbol, "SELL", pos.quantity, result.filled_price or pos.last_price,
+            None, symbol, "SELL", pos.quantity, fill_price,
             self.orch.broker.name, result.order_id or "",
-            "filled" if result.success else "failed", reason,
+            "filled" if result.success else "failed", reason, pnl=exit_pnl,
         )
         if result.success:
             self.orch.memory.record_outcome(symbol, change, f"({reason})")
             self.orch.desk.record_exit(symbol, reason, change)
             self.stop_overrides.pop(symbol, None)
             self._save_state()
-        self.orch._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2)})
-        self.orch.notifier.send(
-            f"🛡 Sentinel exit: {symbol} ({change:+.1f}%)",
-            f"Sold {pos.quantity} {symbol} — {reason} ({self.orch.broker.name} mode)",
-        )
+        self.orch._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2),
+                                  "pnl": round(exit_pnl, 2) if exit_pnl is not None else None})
+        if result.success:
+            self.orch.notifier.send(
+                f"🛡 Sentinel exit: SELL {pos.quantity} {symbol} ({change:+.1f}%)",
+                f"Sold {pos.quantity} {symbol} @ Rs.{fill_price:.2f} — {reason} ({self.orch.broker.name} mode)\n"
+                f"Realized P&L: Rs.{exit_pnl:+,.2f}",
+            )
+        else:
+            self.orch.notifier.send(
+                f"❌ Sentinel exit FAILED: SELL {pos.quantity} {symbol}",
+                f"{reason} but order failed ({self.orch.broker.name} mode): {result.message}",
+            )
 
     def _headlines_for(self, symbol: str, max_age_s: int = 900) -> list:
         cached = self._news_cache.get(symbol)

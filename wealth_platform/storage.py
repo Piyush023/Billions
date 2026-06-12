@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS trades (
     order_id TEXT,
     status TEXT,
     reasoning TEXT,
+    pnl REAL,
     created_at TEXT
 );
 CREATE TABLE IF NOT EXISTS portfolio_snapshots (
@@ -76,6 +77,13 @@ class Storage:
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         with self._conn() as conn:
             conn.executescript(SCHEMA)
+            self._migrate(conn)
+
+    @staticmethod
+    def _migrate(conn):
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()}
+        if "pnl" not in cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN pnl REAL")
 
     @contextmanager
     def _conn(self):
@@ -130,12 +138,14 @@ class Storage:
             )
 
     def log_trade(self, cycle_id: Optional[int], symbol: str, side: str, quantity: int, price: float,
-                  broker: str, order_id: str, status: str, reasoning: str = ""):
+                  broker: str, order_id: str, status: str, reasoning: str = "",
+                  pnl: Optional[float] = None):
         with self._conn() as conn:
             conn.execute(
-                "INSERT INTO trades (cycle_id, symbol, side, quantity, price, broker, order_id, status, reasoning, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (cycle_id, symbol, side, quantity, price, broker, order_id, status, reasoning, datetime.now().isoformat()),
+                "INSERT INTO trades (cycle_id, symbol, side, quantity, price, broker, order_id, status, reasoning, pnl, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (cycle_id, symbol, side, quantity, price, broker, order_id, status, reasoning,
+                 round(pnl, 2) if pnl is not None else None, datetime.now().isoformat()),
             )
 
     def snapshot_portfolio(self, total_value: float, cash: float, positions: dict, mf_value: float = 0):
@@ -165,7 +175,36 @@ class Storage:
         return self._rows("SELECT * FROM agent_messages WHERE cycle_id=? ORDER BY id", (cycle_id,))
 
     def recent_trades(self, limit=50):
-        return self._rows("SELECT * FROM trades ORDER BY id DESC LIMIT ?", (limit,))
+        trades = self._rows("SELECT * FROM trades ORDER BY id DESC LIMIT ?", (limit,))
+        missing = [t["id"] for t in trades if t["side"] == "SELL" and t["status"] == "filled" and t["pnl"] is None]
+        if missing:
+            computed = self._fifo_pnl()
+            for t in trades:
+                if t["id"] in missing and t["id"] in computed:
+                    t["pnl"] = computed[t["id"]]
+        return trades
+
+    def _fifo_pnl(self) -> dict:
+        rows = self._rows("SELECT id, symbol, side, quantity, price FROM trades WHERE status='filled' ORDER BY id")
+        lots: dict = {}
+        result = {}
+        for r in rows:
+            sym = r["symbol"]
+            if r["side"] == "BUY":
+                lots.setdefault(sym, []).append([r["quantity"], r["price"] or 0.0])
+                continue
+            qty, pnl = r["quantity"], 0.0
+            queue = lots.get(sym, [])
+            while qty > 0 and queue:
+                lot = queue[0]
+                take = min(qty, lot[0])
+                pnl += ((r["price"] or 0.0) - lot[1]) * take
+                lot[0] -= take
+                qty -= take
+                if lot[0] == 0:
+                    queue.pop(0)
+            result[r["id"]] = round(pnl, 2)
+        return result
 
     def recent_decisions(self, limit=50):
         return self._rows("SELECT * FROM decisions ORDER BY id DESC LIMIT ?", (limit,))

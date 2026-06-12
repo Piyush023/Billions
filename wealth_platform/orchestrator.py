@@ -266,6 +266,10 @@ class WealthOrchestrator:
         # Critical section: the sentinel may have traded while the agents were
         # debating (minutes). Re-validate funds/positions and fill atomically
         # under the shared trade lock so the two loops can't double-spend.
+        avg_before = 0.0
+        if proposal["action"] == "SELL":
+            pos = self.broker.get_positions().get(symbol)
+            avg_before = pos.average_price if pos else 0.0
         with self.trade_lock:
             # PM-approved capital rotation: sell a weaker holding to fund this buy.
             rotate_out = pm_decision.get("fund_by_selling")
@@ -275,17 +279,31 @@ class WealthOrchestrator:
                     sell_result = self.broker.place_order(
                         symbol=rotate_out, quantity=held.quantity, side="SELL", product="CNC")
                     change = (held.last_price / held.average_price - 1) * 100 if held.average_price else 0
+                    rotate_fill = sell_result.filled_price or held.last_price
+                    rotate_pnl = (rotate_fill - held.average_price) * held.quantity if sell_result.success else None
                     self.storage.log_trade(
                         self._current_cycle_id, rotate_out, "SELL", held.quantity,
-                        sell_result.filled_price or held.last_price, self.broker.name,
+                        rotate_fill, self.broker.name,
                         sell_result.order_id or "", "filled" if sell_result.success else "failed",
-                        f"PM rotation: freeing capital for {symbol}")
+                        f"PM rotation: freeing capital for {symbol}", pnl=rotate_pnl)
                     if sell_result.success:
                         self.memory.record_outcome(rotate_out, change, f"(rotated into {symbol})")
                         self.desk.record_exit(rotate_out, f"rotated into {symbol}", change)
                         self._emit("exit", {"symbol": rotate_out,
                                             "reason": f"PM rotation → funding {symbol}",
-                                            "pnl_pct": round(change, 2)})
+                                            "pnl_pct": round(change, 2),
+                                            "pnl": round(rotate_pnl, 2) if rotate_pnl is not None else None})
+                        self.notifier.send(
+                            f"🔄 Rotation SELL: {held.quantity} {rotate_out} ({change:+.1f}%)",
+                            f"Sold {held.quantity} {rotate_out} @ Rs.{rotate_fill:.2f} to fund {symbol} "
+                            f"({self.broker.name} mode)\n"
+                            f"Realized P&L: Rs.{rotate_pnl:+,.2f}" if rotate_pnl is not None else "",
+                        )
+                    else:
+                        self.notifier.send(
+                            f"❌ Rotation SELL FAILED: {rotate_out}",
+                            f"Could not free capital for {symbol}: {sell_result.message}",
+                        )
             funds_now = self.broker.get_funds()
             if proposal["action"] == "BUY":
                 est_cost = quantity * quote.last_price * 1.005  # + costs headroom
@@ -299,11 +317,15 @@ class WealthOrchestrator:
                     return {"symbol": symbol, "action": "aborted", "research": research_decision,
                             "proposal": proposal, "pm": pm_decision}
             result = self.broker.place_order(symbol=symbol, quantity=quantity, side=proposal["action"], product="CNC")
+        fill_price = result.filled_price or quote.last_price
+        trade_pnl = None
+        if proposal["action"] == "SELL" and result.success and avg_before:
+            trade_pnl = (fill_price - avg_before) * quantity
         self.storage.log_trade(
             self._current_cycle_id, symbol, proposal["action"], quantity,
-            result.filled_price or quote.last_price, self.broker.name,
+            fill_price, self.broker.name,
             result.order_id or "", "filled" if result.success else "failed",
-            proposal.get("reasoning", ""),
+            proposal.get("reasoning", ""), pnl=trade_pnl,
         )
         if result.success and proposal["action"] == "BUY":
             self.desk.record_entry(symbol, proposal.get("reasoning", ""),
@@ -311,13 +333,22 @@ class WealthOrchestrator:
         self._emit("trade_executed", {
             "symbol": symbol, "side": proposal["action"], "quantity": quantity,
             "success": result.success, "message": result.message,
+            "pnl": round(trade_pnl, 2) if trade_pnl is not None else None,
         })
         if result.success:
+            pnl_line = f"Realized P&L: Rs.{trade_pnl:+,.2f}\n" if trade_pnl is not None else ""
             self.notifier.send(
-                f"✅ Trade: {proposal['action']} {quantity} {symbol}",
-                f"Filled @ Rs.{result.filled_price or quote.last_price:.2f} ({self.broker.name} mode)\n\n"
+                f"✅ Trade: {proposal['action']} {quantity} {symbol} @ Rs.{fill_price:.2f}",
+                f"Filled @ Rs.{fill_price:.2f} ({self.broker.name} mode)\n"
+                f"{pnl_line}\n"
                 f"Reasoning: {proposal.get('reasoning', '')}\n"
                 f"Stop-loss: {proposal.get('stop_loss', 'n/a')} | Target: {proposal.get('take_profit', 'n/a')}",
+            )
+        else:
+            self.notifier.send(
+                f"❌ Trade FAILED: {proposal['action']} {quantity} {symbol}",
+                f"Order rejected ({self.broker.name} mode): {result.message}\n\n"
+                f"Reasoning: {proposal.get('reasoning', '')}",
             )
         return {"symbol": symbol, "action": "executed" if result.success else "failed",
                 "research": research_decision, "proposal": proposal, "pm": pm_decision}
@@ -339,21 +370,70 @@ class WealthOrchestrator:
             if reason:
                 with self.trade_lock:
                     result = self.broker.place_order(symbol=symbol, quantity=pos.quantity, side="SELL", product="CNC")
-                self.storage.log_trade(None, symbol, "SELL", pos.quantity, result.filled_price or pos.last_price,
+                fill_price = result.filled_price or pos.last_price
+                exit_pnl = (fill_price - pos.average_price) * pos.quantity if result.success else None
+                self.storage.log_trade(None, symbol, "SELL", pos.quantity, fill_price,
                                        self.broker.name, result.order_id or "",
-                                       "filled" if result.success else "failed", reason)
+                                       "filled" if result.success else "failed", reason,
+                                       pnl=exit_pnl)
                 self.memory.record_outcome(symbol, change, f"({reason})")
                 if result.success:
                     self.desk.record_exit(symbol, reason, change)
-                self._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2)})
-                self.notifier.send(
-                    f"🚪 Exit: {symbol} ({change:+.1f}%)",
-                    f"Sold {pos.quantity} {symbol} — {reason} ({self.broker.name} mode)",
-                )
+                self._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2),
+                                    "pnl": round(exit_pnl, 2) if exit_pnl is not None else None})
+                if result.success:
+                    self.notifier.send(
+                        f"🚪 Exit: SELL {pos.quantity} {symbol} ({change:+.1f}%)",
+                        f"Sold {pos.quantity} {symbol} @ Rs.{fill_price:.2f} — {reason} ({self.broker.name} mode)\n"
+                        f"Realized P&L: Rs.{exit_pnl:+,.2f}",
+                    )
+                else:
+                    self.notifier.send(
+                        f"❌ Exit FAILED: SELL {pos.quantity} {symbol}",
+                        f"{reason} but order failed ({self.broker.name} mode): {result.message}",
+                    )
 
     # ------------------------------------------------------------------
     # Full daily cycle + EOD report
     # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # Bot lifecycle notifications (scheduled once/day — not per cycle)
+    # ------------------------------------------------------------------
+
+    def _portfolio_summary(self) -> str:
+        try:
+            funds = self.broker.get_funds()
+            positions = self.broker.get_positions()
+            lines = [f"Broker: {self.broker.name}", f"Cash: Rs.{funds.available_cash:,.2f}"]
+            if positions:
+                lines.append("Open positions:")
+                for s, p in positions.items():
+                    lines.append(
+                        f"  {s}: {p.quantity} @ Rs.{p.average_price:.2f} "
+                        f"(LTP Rs.{p.last_price:.2f}, P&L Rs.{p.pnl:+,.2f})"
+                    )
+            else:
+                lines.append("Open positions: none")
+            return "\n".join(lines)
+        except Exception as exc:  # noqa: BLE001
+            return f"Portfolio snapshot unavailable: {exc}"
+
+    def notify_bot_start(self):
+        self._emit("bot_start", {})
+        self.notifier.send(
+            "🤖 Bot Started — trading day beginning",
+            f"The wealth platform bot is starting its trading day "
+            f"({datetime.now().strftime('%d %b %Y, %H:%M')} IST).\n\n{self._portfolio_summary()}",
+        )
+
+    def notify_bot_stop(self):
+        self._emit("bot_stop", {})
+        self.notifier.send(
+            "🛑 Bot Stopped — trading day over",
+            f"Market closed; the bot has finished trading for today "
+            f"({datetime.now().strftime('%d %b %Y, %H:%M')} IST).\n\n{self._portfolio_summary()}",
+        )
 
     def run_daily_cycle(self) -> dict:
         symbols = self.select_symbols()

@@ -7,9 +7,11 @@ Free hosting: deploy this on Oracle Cloud Free Tier (or run locally);
 the dashboard is a single static HTML file served by this same process.
 
 Scheduler (IST):
-  08:45  Mon-Fri  full LLM decision cycle (pre-market)
+  08:45  Mon-Fri  bot start email + pre-market cycle
+  09:15-14:45  continuous back-to-back cycles during market hours
   every 5 min during market hours: math-only exit management (no LLM)
-  15:35  Mon-Fri  EOD report -> DB + Telegram
+  15:30  Mon-Fri  bot stop email with portfolio summary
+  15:35  Mon-Fri  EOD report -> DB + email/Telegram
 """
 
 import asyncio
@@ -80,8 +82,13 @@ def run_cycle_blocking():
 IST = "Asia/Kolkata"
 scheduler = BackgroundScheduler(timezone=IST)
 scheduler.add_job(
-    run_cycle_blocking,
+    orchestrator.notify_bot_start,
     CronTrigger(day_of_week="mon-fri", hour=8, minute=45, timezone=IST),
+    id="bot_start_notice",
+)
+scheduler.add_job(
+    run_cycle_blocking,
+    CronTrigger(day_of_week="mon-fri", hour=8, minute=46, timezone=IST),
     id="premarket_cycle",
 )
 # Continuous mode: cycles run back-to-back during market hours — as soon as
@@ -112,6 +119,11 @@ scheduler.add_job(
     orchestrator.manage_exits,
     CronTrigger(day_of_week="mon-fri", hour="9-15", minute="*/5", timezone=IST),
     id="exit_management",
+)
+scheduler.add_job(
+    orchestrator.notify_bot_stop,
+    CronTrigger(day_of_week="mon-fri", hour=15, minute=30, timezone=IST),
+    id="bot_stop_notice",
 )
 scheduler.add_job(
     orchestrator.generate_eod_report,
@@ -218,8 +230,8 @@ def history():
 
 
 @app.get("/api/trades")
-def trades():
-    return orchestrator.storage.recent_trades(100)
+def trades(limit: int = 1000):
+    return orchestrator.storage.recent_trades(limit)
 
 
 @app.get("/api/decisions")

@@ -154,8 +154,8 @@
     <div class="scrolltable"><table id="positions"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>LTP</th><th>P&L ₹</th><th>P&L %</th></tr></thead><tbody></tbody></table></div></div>
   </div>
   <div class="panel">
-    <h2>Recent Trades</h2>
-    <div class="scrolltable"><table id="trades"><thead><tr><th>Time (IST)</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
+    <h2>Recent Trades <span id="trade-count" class="muted" style="text-transform:none;font-size:11px;"></span></h2>
+    <div class="scrolltable"><table id="trades"><thead><tr><th>Time (IST)</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>P&L ₹</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
   </div>
   <div class="panel">
     <h2>Decisions</h2>
@@ -227,11 +227,16 @@ async function refresh() {
     }).join('') || '<tr><td colspan="6" class="muted">No open positions</td></tr>';
 
     const trades = await (await fetch('/api/trades')).json();
-    document.querySelector('#trades tbody').innerHTML = trades.map(t =>
-      `<tr><td>${ist(t.created_at)}</td><td class="sym">${t.symbol}</td>
+    document.getElementById('trade-count').textContent = trades.length ? `(${trades.length})` : '';
+    document.querySelector('#trades tbody').innerHTML = trades.map(t => {
+      const pnlCell = (t.pnl === null || t.pnl === undefined)
+        ? '<td class="muted">—</td>'
+        : `<td class="${t.pnl >= 0 ? 'green' : 'red'}">${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(0)}</td>`;
+      return `<tr><td>${ist(t.created_at)}</td><td class="sym">${t.symbol}</td>
        <td class="${t.side === 'BUY' ? 'green' : 'red'}"><b>${t.side}</b></td><td>${t.quantity}</td>
-       <td>${(t.price || 0).toFixed(1)}</td><td>${t.status}</td></tr>`).join('') ||
-      '<tr><td colspan="6" class="muted">No trades yet</td></tr>';
+       <td>${(t.price || 0).toFixed(1)}</td>${pnlCell}<td>${t.status}</td></tr>`;
+    }).join('') ||
+      '<tr><td colspan="7" class="muted">No trades yet</td></tr>';
 
     const decisions = await (await fetch('/api/decisions')).json();
     document.querySelector('#decisions tbody').innerHTML = decisions.map(d => {
@@ -329,10 +334,18 @@ function addEvent(ev) {
     body = `<span class="verdict ${ev.approved ? 'green' : 'red'}">${ev.approved ? '✅ APPROVED' : '❌ REJECTED'}</span><br>${esc(ev.decision.reasoning || '')}`;
   } else if (ev.type === 'trade_executed') {
     type = 't-trade'; badge = 'trade'; who = 'Execution'; important = true;
-    body = `<strong>${ev.side} ${ev.quantity} ${ev.symbol}</strong> — ${ev.success ? 'filled ✓' : 'FAILED: ' + esc(ev.message || '')}`;
+    const pnlStr = ev.pnl != null ? ` · P&L <b class="${ev.pnl >= 0 ? 'green' : 'red'}">${ev.pnl >= 0 ? '+' : ''}₹${ev.pnl}</b>` : '';
+    body = `<strong>${ev.side} ${ev.quantity} ${ev.symbol}</strong> — ${ev.success ? 'filled ✓' : 'FAILED: ' + esc(ev.message || '')}${pnlStr}`;
   } else if (ev.type === 'exit') {
     type = 't-exit'; badge = 'exit'; who = 'Exit'; important = true;
-    body = `<strong>${ev.symbol}</strong> closed at <b class="${ev.pnl_pct >= 0 ? 'green' : 'red'}">${ev.pnl_pct >= 0 ? '+' : ''}${ev.pnl_pct}%</b> — ${esc(ev.reason || '')}`;
+    const pnlAmt = ev.pnl != null ? ` · <b class="${ev.pnl >= 0 ? 'green' : 'red'}">${ev.pnl >= 0 ? '+' : ''}₹${ev.pnl}</b>` : '';
+    body = `<strong>${ev.symbol}</strong> closed at <b class="${ev.pnl_pct >= 0 ? 'green' : 'red'}">${ev.pnl_pct >= 0 ? '+' : ''}${ev.pnl_pct}%</b>${pnlAmt} — ${esc(ev.reason || '')}`;
+  } else if (ev.type === 'bot_start') {
+    type = 't-system'; badge = 'bot'; who = 'Bot Started'; important = true;
+    body = 'Trading day beginning — morning notification sent.';
+  } else if (ev.type === 'bot_stop') {
+    type = 't-system'; badge = 'bot'; who = 'Bot Stopped'; important = true;
+    body = 'Trading day over — afternoon notification sent.';
   } else if (ev.type === 'sentinel') {
     type = 't-sentinel'; badge = 'sentinel'; who = 'Sentinel';
     sentinelState[ev.symbol] = { ...ev, time: ist(ev.time) }; renderSentinel();

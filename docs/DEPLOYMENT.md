@@ -158,3 +158,22 @@ scp -r ubuntu@<PUBLIC_IP>:~/Billions/data ./backup-$(date +%F)
 
 ## Total cost: ₹0/month
 (Oracle Always Free VM + Groq/Gemini free LLM + Groww free API + SQLite + your nodemailer)
+
+
+
+<!-- How to Deploy on Server - Both Applications -->
+cd ~/Billions   # or wherever you cloned the repo
+
+# Install any new Python deps (safe to run every deploy)
+.venv/bin/pip install -r requirements_platform.txt
+
+# Restart platform + mailer
+sudo systemctl restart mailer
+sudo systemctl restart wealth-platform
+
+# Verify both are running
+sudo systemctl status wealth-platform
+sudo systemctl status mailer
+
+journalctl -u wealth-platform -f
+journalctl -u mailer -f

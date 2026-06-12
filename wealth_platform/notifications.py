@@ -1,9 +1,9 @@
 """Notification layer: email-first (your nodemailer service), Telegram fallback.
 
-Configure in .env:
-  EMAIL_SERVICE_URL=http://localhost:3001/send     # your nodemailer endpoint
-  EMAIL_TO=piyushkhurana23@gmail.com               # recipient
-  EMAIL_SERVICE_API_KEY=...                        # optional; sent as Bearer token
+Configure in .env (defaults point at the local mailer service):
+  EMAIL_SERVICE_URL=http://localhost:3010/send-email   # your nodemailer endpoint
+  EMAIL_TO=piyushkhurana23@gmail.com                   # recipient
+  EMAIL_SERVICE_API_KEY=...                            # optional; sent as Bearer token
 
 Expected nodemailer endpoint contract (adjust PAYLOAD_STYLE if yours differs):
   POST {EMAIL_SERVICE_URL}
@@ -24,9 +24,12 @@ logger = logging.getLogger("wealth_platform.notifications")
 
 
 class Notifier:
+    DEFAULT_EMAIL_URL = "http://localhost:3010/send-email"
+    DEFAULT_EMAIL_TO = "piyushkhurana23@gmail.com"
+
     def __init__(self):
-        self.email_url = os.getenv("EMAIL_SERVICE_URL")
-        self.email_to = os.getenv("EMAIL_TO")
+        self.email_url = os.getenv("EMAIL_SERVICE_URL", self.DEFAULT_EMAIL_URL)
+        self.email_to = os.getenv("EMAIL_TO", self.DEFAULT_EMAIL_TO)
         self.email_api_key = os.getenv("EMAIL_SERVICE_API_KEY")
         self.telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID")

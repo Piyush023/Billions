@@ -200,23 +200,42 @@ class WealthOrchestrator:
                     "proposal": proposal, "pm": pm_decision}
 
         quantity = int(pm_decision.get("adjusted_quantity") or proposal["quantity"])
+        # Snapshot avg buy price before the order mutates the position, so a
+        # SELL can record its realized P&L.
+        avg_before = 0.0
+        if proposal["action"] == "SELL":
+            pos = self.broker.get_positions().get(symbol)
+            avg_before = pos.average_price if pos else 0.0
         result = self.broker.place_order(symbol=symbol, quantity=quantity, side=proposal["action"], product="CNC")
+        fill_price = result.filled_price or quote.last_price
+        trade_pnl = None
+        if proposal["action"] == "SELL" and result.success and avg_before:
+            trade_pnl = (fill_price - avg_before) * quantity
         self.storage.log_trade(
             self._current_cycle_id, symbol, proposal["action"], quantity,
-            result.filled_price or quote.last_price, self.broker.name,
+            fill_price, self.broker.name,
             result.order_id or "", "filled" if result.success else "failed",
-            proposal.get("reasoning", ""),
+            proposal.get("reasoning", ""), pnl=trade_pnl,
         )
         self._emit("trade_executed", {
             "symbol": symbol, "side": proposal["action"], "quantity": quantity,
             "success": result.success, "message": result.message,
+            "pnl": round(trade_pnl, 2) if trade_pnl is not None else None,
         })
         if result.success:
+            pnl_line = f"Realized P&L: Rs.{trade_pnl:+,.2f}\n" if trade_pnl is not None else ""
             self.notifier.send(
-                f"✅ Trade: {proposal['action']} {quantity} {symbol}",
-                f"Filled @ Rs.{result.filled_price or quote.last_price:.2f} ({self.broker.name} mode)\n\n"
+                f"✅ Trade: {proposal['action']} {quantity} {symbol} @ Rs.{fill_price:.2f}",
+                f"Filled @ Rs.{fill_price:.2f} ({self.broker.name} mode)\n"
+                f"{pnl_line}\n"
                 f"Reasoning: {proposal.get('reasoning', '')}\n"
                 f"Stop-loss: {proposal.get('stop_loss', 'n/a')} | Target: {proposal.get('take_profit', 'n/a')}",
+            )
+        else:
+            self.notifier.send(
+                f"❌ Trade FAILED: {proposal['action']} {quantity} {symbol}",
+                f"Order rejected ({self.broker.name} mode): {result.message}\n\n"
+                f"Reasoning: {proposal.get('reasoning', '')}",
             )
         return {"symbol": symbol, "action": "executed" if result.success else "failed",
                 "research": research_decision, "proposal": proposal, "pm": pm_decision}
@@ -237,21 +256,67 @@ class WealthOrchestrator:
                 reason = f"target hit ({change:.1f}%)"
             if reason:
                 result = self.broker.place_order(symbol=symbol, quantity=pos.quantity, side="SELL", product="CNC")
-                self.storage.log_trade(None, symbol, "SELL", pos.quantity, result.filled_price or pos.last_price,
+                fill_price = result.filled_price or pos.last_price
+                exit_pnl = (fill_price - pos.average_price) * pos.quantity if result.success else None
+                self.storage.log_trade(None, symbol, "SELL", pos.quantity, fill_price,
                                        self.broker.name, result.order_id or "",
-                                       "filled" if result.success else "failed", reason)
+                                       "filled" if result.success else "failed", reason,
+                                       pnl=exit_pnl)
                 self.memory.record_outcome(symbol, change, f"({reason})")
-                self._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2)})
-                self.notifier.send(
-                    f"🚪 Exit: {symbol} ({change:+.1f}%)",
-                    f"Sold {pos.quantity} {symbol} — {reason} ({self.broker.name} mode)",
-                )
+                self._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2),
+                                    "pnl": round(exit_pnl, 2) if exit_pnl is not None else None})
+                if result.success:
+                    self.notifier.send(
+                        f"🚪 Exit: SELL {pos.quantity} {symbol} ({change:+.1f}%)",
+                        f"Sold {pos.quantity} {symbol} @ Rs.{fill_price:.2f} — {reason} ({self.broker.name} mode)\n"
+                        f"Realized P&L: Rs.{exit_pnl:+,.2f}",
+                    )
+                else:
+                    self.notifier.send(
+                        f"❌ Exit FAILED: SELL {pos.quantity} {symbol}",
+                        f"{reason} but order failed ({self.broker.name} mode): {result.message}",
+                    )
 
     # ------------------------------------------------------------------
     # Full daily cycle + EOD report
     # ------------------------------------------------------------------
 
+    def _portfolio_summary(self) -> str:
+        """Compact text snapshot used in bot start/stop emails."""
+        try:
+            funds = self.broker.get_funds()
+            positions = self.broker.get_positions()
+            lines = [f"Broker: {self.broker.name}", f"Cash: Rs.{funds.available_cash:,.2f}"]
+            if positions:
+                lines.append("Open positions:")
+                for s, p in positions.items():
+                    lines.append(f"  {s}: {p.quantity} @ Rs.{p.average_price:.2f} (LTP Rs.{p.last_price:.2f}, P&L Rs.{p.pnl:+,.2f})")
+            else:
+                lines.append("Open positions: none")
+            return "\n".join(lines)
+        except Exception as exc:  # noqa: BLE001
+            return f"Portfolio snapshot unavailable: {exc}"
+
+    def notify_bot_start(self):
+        """Morning notification: trading bot is up and starting the day."""
+        self._emit("bot_start", {})
+        self.notifier.send(
+            "🤖 Bot Started — trading day beginning",
+            f"The wealth platform bot is starting its trading day "
+            f"({datetime.now().strftime('%d %b %Y, %H:%M')} IST).\n\n{self._portfolio_summary()}",
+        )
+
+    def notify_bot_stop(self):
+        """Afternoon notification: market closed, bot done for the day."""
+        self._emit("bot_stop", {})
+        self.notifier.send(
+            "🛑 Bot Stopped — trading day over",
+            f"Market closed; the bot has finished trading for today "
+            f"({datetime.now().strftime('%d %b %Y, %H:%M')} IST).\n\n{self._portfolio_summary()}",
+        )
+
     def run_daily_cycle(self) -> dict:
+        self.notify_bot_start()
         symbols = self.select_symbols()
         self._current_cycle_id = self.storage.start_cycle(symbols)
         self._emit("cycle_started", {"cycle_id": self._current_cycle_id, "symbols": symbols})

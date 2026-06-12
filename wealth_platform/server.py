@@ -7,9 +7,10 @@ Free hosting: deploy this on Oracle Cloud Free Tier (or run locally);
 the dashboard is a single static HTML file served by this same process.
 
 Scheduler (IST):
-  08:45  Mon-Fri  full LLM decision cycle (pre-market)
+  08:45  Mon-Fri  full LLM decision cycle (pre-market) — emails "Bot Started"
   every 5 min during market hours: math-only exit management (no LLM)
-  15:35  Mon-Fri  EOD report -> DB + Telegram
+  15:30  Mon-Fri  market close — emails "Bot Stopped" with portfolio summary
+  15:35  Mon-Fri  EOD report -> DB + email/Telegram
 """
 
 import asyncio
@@ -81,6 +82,11 @@ scheduler.add_job(
     id="exit_management",
 )
 scheduler.add_job(
+    orchestrator.notify_bot_stop,
+    CronTrigger(day_of_week="mon-fri", hour=15, minute=30),
+    id="bot_stop_notice",
+)
+scheduler.add_job(
     orchestrator.generate_eod_report,
     CronTrigger(day_of_week="mon-fri", hour=15, minute=35),
     id="eod_report",
@@ -134,8 +140,8 @@ def history():
 
 
 @app.get("/api/trades")
-def trades():
-    return orchestrator.storage.recent_trades(100)
+def trades(limit: int = 1000):
+    return orchestrator.storage.recent_trades(limit)
 
 
 @app.get("/api/decisions")

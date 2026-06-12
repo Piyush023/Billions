@@ -79,8 +79,10 @@
   <div class="panel">
     <h2>Positions</h2>
     <table id="positions"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>LTP</th><th>P&L</th></tr></thead><tbody></tbody></table>
-    <h2 style="margin-top:20px;">Recent Trades</h2>
-    <table id="trades"><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th></tr></thead><tbody></tbody></table>
+    <h2 style="margin-top:20px;">Recent Trades <span id="trade-count" style="text-transform:none;font-size:12px;"></span></h2>
+    <div style="max-height:320px; overflow-y:auto;">
+      <table id="trades"><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>P&L</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
   </div>
   <div class="panel">
     <h2>Decisions</h2>
@@ -110,11 +112,16 @@ async function refresh() {
       '<tr><td colspan="5" style="color:var(--muted)">No open positions</td></tr>';
 
     const trades = await (await fetch('/api/trades')).json();
-    document.querySelector('#trades tbody').innerHTML = trades.slice(0, 8).map(t =>
-      `<tr><td>${t.created_at.slice(5, 16)}</td><td>${t.symbol}</td>
+    document.getElementById('trade-count').textContent = trades.length ? `(${trades.length})` : '';
+    document.querySelector('#trades tbody').innerHTML = trades.map(t => {
+      const pnlCell = (t.pnl === null || t.pnl === undefined)
+        ? '<td style="color:var(--muted)">—</td>'
+        : `<td class="${t.pnl >= 0 ? 'green' : 'red'}">${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(1)}</td>`;
+      return `<tr><td>${t.created_at.slice(5, 16)}</td><td>${t.symbol}</td>
        <td class="${t.side === 'BUY' ? 'green' : 'red'}">${t.side}</td><td>${t.quantity}</td>
-       <td>${(t.price || 0).toFixed(1)}</td><td>${t.status}</td></tr>`).join('') ||
-      '<tr><td colspan="6" style="color:var(--muted)">No trades yet</td></tr>';
+       <td>${(t.price || 0).toFixed(1)}</td>${pnlCell}<td>${t.status}</td></tr>`;
+    }).join('') ||
+      '<tr><td colspan="7" style="color:var(--muted)">No trades yet</td></tr>';
 
     const decisions = await (await fetch('/api/decisions')).json();
     document.querySelector('#decisions tbody').innerHTML = decisions.slice(0, 10).map(d => {
@@ -140,7 +147,9 @@ function addEvent(ev) {
   else if (ev.type === 'trade_executed') body = `<b class="green">TRADE</b> ${ev.side} ${ev.quantity} ${ev.symbol} — ${ev.success ? 'filled' : 'FAILED: ' + ev.message}`;
   else if (ev.type === 'trade_proposal') body = `<b>Proposal</b> ${ev.symbol}: ${ev.proposal.action} ${ev.proposal.quantity || ''} @ ${ev.proposal.entry_price || 'mkt'}`;
   else if (ev.type === 'research_verdict') body = `<b>Research</b> ${ev.symbol}: ${ev.verdict.rating} (${ev.verdict.confidence}%)`;
-  else if (ev.type === 'exit') body = `<b class="red">EXIT</b> ${ev.symbol}: ${ev.reason} (${ev.pnl_pct}%)`;
+  else if (ev.type === 'exit') body = `<b class="red">EXIT</b> ${ev.symbol}: ${ev.reason} (${ev.pnl_pct}%${ev.pnl != null ? ', ₹' + ev.pnl : ''})`;
+  else if (ev.type === 'bot_start') body = `<b class="green">🤖 BOT STARTED</b> — trading day beginning`;
+  else if (ev.type === 'bot_stop') body = `<b class="red">🛑 BOT STOPPED</b> — trading day over`;
   else if (ev.type === 'ipo_analysis') body = `<b>IPO</b> ${ev.ipo?.company || ''}: ${ev.recommendation} (${ev.confidence}%)<pre>${ev.reasoning || ''}</pre>`;
   else if (ev.type === 'eod_report') { body = `<b>EOD report ready</b>`; refresh(); }
   else if (ev.type === 'cycle_started') { resetStages(); body = `<b>Cycle #${ev.cycle_id} started</b>: ${(ev.symbols || []).join(', ')}`; }

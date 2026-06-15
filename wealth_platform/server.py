@@ -148,7 +148,7 @@ scheduler.add_job(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     bus.loop = asyncio.get_running_loop()
-    logger.info("Runtime data directory: %s (db: %s)", DATA_DIR, DB_PATH)
+    logger.info("Runtime data directory: %s | database: %s", DATA_DIR, orchestrator.storage.backend_label)
     scheduler.start()
     for job in scheduler.get_jobs():
         logger.info("Scheduled job %s — next run: %s", job.id, job.next_run_time)
@@ -237,8 +237,10 @@ def data_status():
         counts[table] = rows[0]["n"] if rows else 0
 
     return {
+        "backend": storage.backend,
+        "database": storage.backend_label,
         "data_dir": str(DATA_DIR.resolve()),
-        "db_path": _os.path.abspath(storage.db_path),
+        "db_path": _os.path.abspath(storage.db_path) if storage.backend == "sqlite" else None,
         "table_counts": counts,
         "files": {
             "platform_db": file_info(DB_PATH),

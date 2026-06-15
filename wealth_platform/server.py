@@ -28,6 +28,14 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from wealth_platform.orchestrator import WealthOrchestrator
+from wealth_platform.paths import (
+    AGENT_MEMORY_PATH,
+    DATA_DIR,
+    DB_PATH,
+    DESK_STATE_PATH,
+    PAPER_PORTFOLIO_PATH,
+    SENTINEL_STATE_PATH,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("wealth_platform.server")
@@ -140,6 +148,7 @@ scheduler.add_job(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     bus.loop = asyncio.get_running_loop()
+    logger.info("Runtime data directory: %s (db: %s)", DATA_DIR, DB_PATH)
     scheduler.start()
     for job in scheduler.get_jobs():
         logger.info("Scheduled job %s — next run: %s", job.id, job.next_run_time)
@@ -208,6 +217,39 @@ PROVIDER_LIMITS = {
     "ollama": {"rpm": "-", "tpm": "-", "daily": "unlimited (local)"},
     "anthropic": {"rpm": 50, "tpm": "50K", "daily": "pay-per-use"},
 }
+
+
+@app.get("/api/data-status")
+def data_status():
+    """Where runtime state lives and whether SQLite has been written to."""
+    import os as _os
+
+    def file_info(path: str) -> dict:
+        p = _os.path.abspath(path)
+        if not _os.path.exists(p):
+            return {"path": p, "exists": False, "bytes": 0}
+        return {"path": p, "exists": True, "bytes": _os.path.getsize(p)}
+
+    storage = orchestrator.storage
+    counts = {}
+    for table in ("cycles", "agent_messages", "decisions", "trades", "portfolio_snapshots", "eod_reports"):
+        rows = storage._rows(f"SELECT COUNT(*) AS n FROM {table}")  # noqa: SLF001
+        counts[table] = rows[0]["n"] if rows else 0
+
+    return {
+        "data_dir": str(DATA_DIR.resolve()),
+        "db_path": _os.path.abspath(storage.db_path),
+        "table_counts": counts,
+        "files": {
+            "platform_db": file_info(DB_PATH),
+            "paper_portfolio": file_info(PAPER_PORTFOLIO_PATH),
+            "desk_state": file_info(DESK_STATE_PATH),
+            "sentinel_state": file_info(SENTINEL_STATE_PATH),
+            "agent_memory": file_info(AGENT_MEMORY_PATH),
+        },
+        "broker": orchestrator.broker.name,
+        "open_positions": list(orchestrator.broker.get_positions().keys()),
+    }
 
 
 @app.get("/api/llm-status")

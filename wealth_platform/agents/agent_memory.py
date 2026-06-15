@@ -4,8 +4,11 @@ import os
 import re
 from datetime import datetime, timedelta
 
-MEMORY_PATH = os.path.join("data", "agent_memory.md")
-SUMMARY_PATH = os.path.join("data", "agent_memory_summary.md")
+from wealth_platform.paths import AGENT_MEMORY_PATH, AGENT_MEMORY_SUMMARY_PATH, ensure_data_dir
+
+MEMORY_PATH = AGENT_MEMORY_PATH
+SUMMARY_PATH = AGENT_MEMORY_SUMMARY_PATH
+ensure_data_dir()
 MAX_LESSONS_CHARS = 4000
 
 

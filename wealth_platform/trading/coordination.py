@@ -33,7 +33,9 @@ from typing import Dict, Optional
 
 logger = logging.getLogger("wealth_platform.trading.coordination")
 
-STATE_PATH = os.path.join("data", "desk_state.json")
+from wealth_platform.paths import DESK_STATE_PATH
+
+STATE_PATH = DESK_STATE_PATH
 
 # Single global lock for all order-placing critical sections.
 TRADE_LOCK = threading.RLock()

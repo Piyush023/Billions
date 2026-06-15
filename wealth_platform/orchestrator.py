@@ -107,6 +107,7 @@ class WealthOrchestrator:
         )
         self._analyzed_on: Optional[str] = None  # date string
         self._analyzed_today: set = set()
+        self._nifty_trend_cache: Optional[tuple] = None  # (ok, msg) — once per cycle
         self._current_cycle_id: Optional[int] = None
         self._current_symbol: str = ""
 
@@ -148,8 +149,8 @@ class WealthOrchestrator:
 
     def select_symbols(self) -> List[str]:
         """Pick the next batch from the screener ranking, rotating through the
-        day: stocks already analyzed today are skipped so consecutive cycles
-        cover different parts of the market instead of repeating the same 3."""
+        day. Only symbols that pass the math pre-gate are included — avoids
+        starting a cycle with names that would instantly skip without LLM work."""
         from datetime import date as _date
 
         today = str(_date.today())
@@ -158,17 +159,16 @@ class WealthOrchestrator:
             self._analyzed_today = set()
 
         n = self.config.get("max_stocks_per_cycle", 3)
+        pool: List[str] = []
 
-        # News-driven discovery: stocks making headlines (including outside
-        # the NIFTY-100 universe) get priority slots in the batch.
-        batch: List[str] = []
         if self.config.get("news_discovery", True):
             try:
                 news_slots = self.config.get("news_slots", 1)
                 for item in self.news_discovery.discover():
-                    if item["symbol"] not in self._analyzed_today and len(batch) < news_slots:
-                        batch.append(item["symbol"])
-                        self._emit("news_pick", {"symbol": item["symbol"], "reason": item.get("reason", "")})
+                    sym = item["symbol"]
+                    if sym not in self._analyzed_today and sym not in pool and len(pool) < news_slots:
+                        pool.append(sym)
+                        self._emit("news_pick", {"symbol": sym, "reason": item.get("reason", "")})
             except Exception as exc:  # noqa: BLE001
                 logger.warning("News discovery failed (%s)", exc)
 
@@ -180,17 +180,34 @@ class WealthOrchestrator:
         if not ranked:
             ranked = self.config.get("watchlist", ["RELIANCE", "HDFCBANK", "TCS"])
 
-        # Exclude symbols the desk exited recently (cool-off) so the buy side
-        # can't re-enter what the sentinel just sold.
         ranked = [s for s in ranked if not self.desk.in_exit_cooloff(s)]
-        batch = [s for s in batch if not self.desk.in_exit_cooloff(s)]
-        fresh = [s for s in ranked if s not in self._analyzed_today and s not in batch]
-        if not fresh and not batch:  # whole ranking covered today — start over
+        pool = [s for s in pool if not self.desk.in_exit_cooloff(s)]
+        for sym in ranked:
+            if sym not in pool and sym not in self._analyzed_today:
+                pool.append(sym)
+
+        if not pool:
             self._analyzed_today = set()
-            fresh = ranked
-        batch.extend(fresh[: n - len(batch)])
-        self._analyzed_today.update(batch)
-        logger.info("Cycle batch: %s (analyzed today: %d)", batch, len(self._analyzed_today))
+            pool = [s for s in ranked if not self.desk.in_exit_cooloff(s)]
+            if not pool:
+                pool = list(self.config.get("watchlist", ["RELIANCE", "HDFCBANK", "TCS"]))
+
+        batch: List[str] = []
+        for sym in pool:
+            if len(batch) >= n:
+                break
+            if sym in self._analyzed_today:
+                continue
+            reason = self._pre_gate(sym)
+            if reason:
+                logger.debug("Pre-filter skip %s: %s", sym, reason)
+                continue
+            batch.append(sym)
+
+        logger.info(
+            "Cycle batch: %s (pool %d, pre-filtered, analyzed today: %d)",
+            batch, len(pool), len(self._analyzed_today),
+        )
         return batch
 
     # ------------------------------------------------------------------
@@ -216,7 +233,9 @@ class WealthOrchestrator:
             return f"max positions ({max_positions}) and insufficient cash"
         if not held:
             if self.config.get("require_index_trend", True):
-                ok, msg = nifty_trend_ok()
+                if self._nifty_trend_cache is None:
+                    self._nifty_trend_cache = nifty_trend_ok()
+                ok, msg = self._nifty_trend_cache
                 if not ok:
                     return msg
             ok, msg = stock_entry_ok(symbol, self.config)
@@ -415,7 +434,11 @@ class WealthOrchestrator:
                 self._current_cycle_id, symbol, "SKIP", {}, {"decision": "SKIPPED", "reasoning": skip}, False,
             )
             self._emit("stage", {"symbol": symbol, "stage": "pre_gate_skip", "reason": skip})
-            return {"symbol": symbol, "action": "none", "reason": skip}
+            self._emit("symbol_skipped", {"symbol": symbol, "reason": skip})
+            return {"symbol": symbol, "action": "none", "reason": skip, "skip_type": "pre_gate"}
+
+        self._analyzed_today.add(symbol)
+        self._emit("symbol_analyzing", {"symbol": symbol, "pipeline_mode": mode})
 
         symbol_lessons = self.memory.symbol_lessons(symbol)
         history_context = self.history_rag.build_analyst_context(symbol, symbol_lessons)
@@ -754,7 +777,12 @@ class WealthOrchestrator:
 
     def run_daily_cycle(self) -> dict:
         self.risk_guard.broker = self.broker  # refresh after reconnect
+        self._nifty_trend_cache = None
         candidates = self.select_symbols()
+        if not candidates:
+            logger.warning("No eligible symbols after pre-filter — skipping cycle")
+            return {"cycle_id": None, "results": [], "ipos": [], "skipped": "no eligible symbols"}
+
         if self.config.get("portfolio_planner", True) and len(candidates) > self.config.get("max_stocks_per_cycle", 3):
             planner = PortfolioPlanner(self.llm, self._on_agent_output, self.style_suffix)
             candidates = planner.plan(
@@ -771,6 +799,7 @@ class WealthOrchestrator:
         results = []
         for symbol in symbols:
             try:
+                logger.info("Cycle #%s analyzing %s (%d/%d)", self._current_cycle_id, symbol, len(results) + 1, len(symbols))
                 results.append(self.analyze_stock(symbol))
             except Exception as exc:  # noqa: BLE001
                 logger.exception("Cycle failed for %s", symbol)
@@ -804,14 +833,19 @@ class WealthOrchestrator:
             rating = research.get("rating", "-")
             conf = research.get("confidence", "-")
             action = r.get("action", "?")
+            skip_reason = r.get("reason", "")
             outcome = {
                 "executed": f"**TRADED** — {proposal.get('action', '')} {proposal.get('quantity', '')} filled",
                 "rejected": f"PM rejected — {pm.get('reasoning', '')[:140]}",
                 "aborted": "aborted at execution (stale funds guard)",
                 "failed": "order failed at broker",
-                "none": "no trade — " + (proposal.get("reasoning") or research.get("rationale") or "below conviction gate")[:140],
+                "none": "no trade — " + (
+                    skip_reason or proposal.get("reasoning") or research.get("rationale") or "below conviction gate"
+                )[:140],
                 "error": f"errored: {r.get('error', '')[:100]}",
             }.get(action, action)
+            if r.get("skip_type") == "pre_gate":
+                outcome = f"pre-filter skip — {skip_reason[:140]}"
             lines.append(f"- **{symbol}**: research {rating} ({conf}%) → {outcome}")
         funds = self.broker.get_funds()
         positions = self.broker.get_positions()

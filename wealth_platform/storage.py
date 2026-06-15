@@ -9,7 +9,9 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import List, Optional
 
-DB_PATH = os.path.join("data", "platform.db")
+from wealth_platform.paths import DB_PATH, ensure_data_dir
+
+ensure_data_dir()
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS cycles (

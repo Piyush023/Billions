@@ -22,7 +22,9 @@ from wealth_platform.llm.llm_client import LLMClient, extract_json
 
 logger = logging.getLogger("wealth_platform.mutual_funds")
 
-HOLDINGS_PATH = os.path.join("data", "mf_holdings.json")
+from wealth_platform.paths import MF_HOLDINGS_PATH
+
+HOLDINGS_PATH = MF_HOLDINGS_PATH
 
 # A small curated universe of liquid, low-expense funds for the LLM to pick from.
 # Scheme codes are AMFI codes (look up any fund's code with mftool or amfiindia.com).

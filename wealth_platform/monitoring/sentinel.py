@@ -36,7 +36,9 @@ from wealth_platform.trading.exit_levels import exit_reason
 
 logger = logging.getLogger("wealth_platform.monitoring.sentinel")
 
-STATE_PATH = os.path.join("data", "sentinel_state.json")
+from wealth_platform.paths import SENTINEL_STATE_PATH
+
+STATE_PATH = SENTINEL_STATE_PATH
 EXIT_CONFIDENCE_THRESHOLD = 75
 
 

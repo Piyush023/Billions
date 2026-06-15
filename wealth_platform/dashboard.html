@@ -323,8 +323,21 @@ function addEvent(ev) {
   if (ev.type === 'agent_report') {
     type = 't-agent'; badge = 'agent'; who = ev.role;
     body = renderMd(ev.report); collapsible = true;
+  } else if (ev.type === 'symbol_skipped') {
+    type = 't-system'; badge = 'skipped'; who = 'Pre-filter';
+    body = `Did not run analysts — ${esc(ev.reason || '')}`;
+  } else if (ev.type === 'symbol_analyzing') {
+    resetStages();
+    type = 't-system'; badge = 'analyzing'; who = 'Pipeline';
+    body = `Running full analyst pipeline (${esc(ev.pipeline_mode || 'standard')} mode)…`;
   } else if (ev.type === 'stage') {
-    setStage(ev.stage, ev.symbol); return;            // pipeline-only, keep feed clean
+    if (ev.stage === 'pre_gate_skip') {
+      type = 't-system'; badge = 'skipped'; who = 'Pre-filter';
+      body = `Did not run analysts — ${esc(ev.reason || '')}`;
+      // fall through to prepend feed entry below
+    } else {
+      setStage(ev.stage, ev.symbol); return;
+    }
   } else if (ev.type === 'research_verdict') {
     type = 't-pm'; badge = 'verdict'; who = 'Research Manager'; important = true;
     body = `<span class="verdict">${ev.verdict.rating} · ${ev.verdict.confidence}% confidence</span><br>${esc(ev.verdict.rationale || '')}`;

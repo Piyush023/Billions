@@ -6,10 +6,13 @@ never overridden — exported values win over .env values.
 """
 
 import os
+from pathlib import Path
+
+from wealth_platform.paths import PROJECT_ROOT
 
 
-def _load_dotenv(path: str = ".env"):
-    if not os.path.exists(path):
+def _load_dotenv(path: Path = PROJECT_ROOT / ".env"):
+    if not path.exists():
         return
     with open(path) as f:
         for line in f:

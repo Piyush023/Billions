@@ -18,7 +18,9 @@ from wealth_platform.brokers.base_broker import BaseBroker, Funds, OrderResult, 
 
 logger = logging.getLogger("wealth_platform.brokers.paper")
 
-STATE_PATH = os.path.join("data", "paper_portfolio.json")
+from wealth_platform.paths import PAPER_PORTFOLIO_PATH
+
+STATE_PATH = PAPER_PORTFOLIO_PATH
 
 # Approximate all-in cost for an NSE delivery round trip at a discount broker
 BROKERAGE_FLAT = 20.0  # per executed order

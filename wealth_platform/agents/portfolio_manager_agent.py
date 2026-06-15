@@ -21,12 +21,11 @@ class PortfolioManagerAgent(BaseAgent):
         "evidence, sizing, and stops are sound AND the portfolio can absorb the loss if the stop is "
         "hit. Hard rules you must enforce: never approve if quantity*entry_price exceeds available "
         "cash; never approve more than 25% of total capital in one stock; never approve if the "
-        "stop-loss implies losing more than 2.5% of total capital. "
-        "CAPITAL ROTATION: if cash is insufficient but this opportunity is clearly stronger than an "
-        "existing holding (better momentum, fresher catalyst, the holding is stagnant or its thesis "
-        "is weakening per the sentinel's notes), you may approve the trade funded by selling that "
-        "holding — set fund_by_selling to its symbol. Only rotate when the new setup is decisively "
-        "better; rotation costs ~Rs.120 in fees. Respond with a JSON object: "
+        "stop-loss implies losing more than 2.5% of total capital; require at least 2:1 reward/risk "
+        "on the trader's stop and target. "
+        "CAPITAL ROTATION: only if cash is insufficient AND the holding to sell is below +2% P&L "
+        "(losing or stagnant) AND the new setup is decisively stronger. Never rotate out a working "
+        "winner to fund a new trade — rotation costs ~Rs.120 in fees. Respond with a JSON object: "
         '{"decision": "APPROVE"|"REJECT", "adjusted_quantity": <int or null>, '
         '"fund_by_selling": "<symbol or null>", '
         '"reasoning": "<3-5 sentences>", "confidence": 0-100}'

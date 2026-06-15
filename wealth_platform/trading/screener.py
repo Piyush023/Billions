@@ -16,7 +16,7 @@ from typing import List, Optional, Tuple
 import pandas as pd
 import yfinance as yf
 
-logger = logging.getLogger("wealth_platform.screener")
+logger = logging.getLogger("wealth_platform.trading.screener")
 
 # Liquid NIFTY-100 constituents (NSE symbols, sans .NS suffix)
 NIFTY_UNIVERSE = [
@@ -97,15 +97,20 @@ class BuiltInScreener:
                 above_sma50 = 1.0 if price > sma50 else 0.0
                 vol_ratio = float(volume.iloc[-5:].mean()) / max(float(volume.rolling(60).mean().iloc[-1]), 1.0)
                 pct_of_52w_high = price / float(close.max())
+                # Prefer pullbacks in uptrends (75–92% of 52w high) over blow-off tops
+                if pct_of_52w_high > 0.97:
+                    high_penalty = -0.15
+                elif pct_of_52w_high < 0.75:
+                    high_penalty = -0.05
+                else:
+                    high_penalty = 0.10 * (1 - abs(pct_of_52w_high - 0.85))
 
-                # Composite: medium-term momentum dominates (positional desk),
-                # trend confirmation, healthy-but-not-manic volume, room below high.
                 score = (
                     40 * r_3m
                     + 25 * r_1m
                     + 15 * above_sma50
                     + 10 * min(vol_ratio, 2.0) / 2.0
-                    + 10 * (1 - abs(pct_of_52w_high - 0.90))  # sweet spot near (not at) highs
+                    + 10 * high_penalty
                 )
                 scores.append((symbol, round(float(score), 3)))
             except Exception:  # noqa: BLE001

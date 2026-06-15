@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
-logger = logging.getLogger("wealth_platform.market_enrichment")
+logger = logging.getLogger("wealth_platform.market.enrichment")
 
 
 def _sym(symbol: str) -> str:

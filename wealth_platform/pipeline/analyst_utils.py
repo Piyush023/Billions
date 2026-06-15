@@ -121,9 +121,14 @@ def compute_ml_signal(symbol: str) -> Optional[Dict]:
         return None
 
 
-def research_gate_allows(rating: str, confidence: int, gate: int, held_qty: int) -> Tuple[bool, str]:
+def research_gate_allows(
+    rating: str, confidence: int, gate: int, held_qty: int,
+    consensus: Optional[str] = None, require_consensus: bool = False,
+) -> Tuple[bool, str]:
     """Expanded gate: block non-actionable ratings before trader/PM spend."""
     rating = (rating or "HOLD").upper()
+    if require_consensus and rating in ("BUY", "OVERWEIGHT") and consensus == "split":
+        return False, "analyst panel split — no BUY without clear consensus"
     if confidence < gate:
         return False, f"confidence {confidence} below gate {gate}"
     if rating in ("HOLD",):

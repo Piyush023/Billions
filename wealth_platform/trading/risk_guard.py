@@ -2,6 +2,8 @@
 
 from typing import Dict, Optional, Tuple
 
+from wealth_platform.trading.entry_filters import atr_stop_price, normalize_stops
+
 
 class RiskGuard:
     MIN_TRADE_VALUE = 1000
@@ -19,7 +21,6 @@ class RiskGuard:
         funds = self.broker.get_funds()
         positions = self.broker.get_positions()
         pos_lines = []
-        sector_exposure: Dict[str, float] = {}
         total_equity = funds.available_cash
         for sym, p in positions.items():
             val = p.last_price * p.quantity
@@ -51,6 +52,66 @@ class RiskGuard:
             lines.append("\n" + desk_briefing)
         return "\n".join(lines)
 
+    def risk_reward_ok(self, entry: float, stop: float, target: float) -> Tuple[bool, str]:
+        min_rr = self.config.get("min_risk_reward_ratio", 2.0)
+        if entry <= 0 or stop <= 0 or target <= 0:
+            return False, "missing entry/stop/target prices"
+        risk = entry - stop
+        reward = target - entry
+        if risk <= 0:
+            return False, "stop must be below entry"
+        if reward <= 0:
+            return False, "target must be above entry"
+        rr = reward / risk
+        if rr < min_rr:
+            return False, f"risk/reward {rr:.1f}:1 below minimum {min_rr}:1"
+        return True, f"R:R {rr:.1f}:1 OK"
+
+    def fee_edge_ok(self, notional: float, entry: float, target: float) -> Tuple[bool, str]:
+        """Block trades where expected gain cannot cover round-trip fees."""
+        min_edge = self.config.get("min_edge_after_fees_pct", 1.5) / 100
+        fees = self.config.get("round_trip_fee_rs", 120)
+        if entry <= 0 or target <= entry or notional <= 0:
+            return False, "invalid prices for fee check"
+        gross_gain_pct = (target / entry - 1)
+        fee_pct = fees / notional
+        net_edge = gross_gain_pct - fee_pct
+        if net_edge < min_edge:
+            return False, (
+                f"net edge after Rs.{fees:.0f} fees ({fee_pct*100:.1f}%) "
+                f"is {net_edge*100:.1f}% — need {min_edge*100:.1f}%+"
+            )
+        return True, "fee-adjusted edge OK"
+
+    def rotation_allowed(self, rotate_symbol: str) -> Tuple[bool, str]:
+        """Only rotate out losers or clearly stagnant names — not working positions."""
+        max_pnl = self.config.get("rotation_max_hold_pnl_pct", 2.0)
+        pos = self.broker.get_positions().get(rotate_symbol)
+        if not pos or not pos.average_price:
+            return False, f"no position in {rotate_symbol} to rotate"
+        pnl_pct = (pos.last_price / pos.average_price - 1) * 100
+        if pnl_pct > max_pnl:
+            return False, (
+                f"rotation blocked: {rotate_symbol} at {pnl_pct:+.1f}% "
+                f"(max {max_pnl:+.1f}% — won't sell winners to fund new trades)"
+            )
+        return True, f"rotation OK ({rotate_symbol} at {pnl_pct:+.1f}%)"
+
+    def apply_stop_target(self, symbol: str, proposal: dict, last_price: float) -> dict:
+        """Normalize and optionally ATR-adjust stop/target on proposals."""
+        entry = float(proposal.get("entry_price") or last_price)
+        stop = float(proposal.get("stop_loss") or 0)
+        target = float(proposal.get("take_profit") or 0)
+        atr_stop = atr_stop_price(symbol, entry, self.config)
+        if atr_stop:
+            stop = atr_stop if stop <= 0 else min(stop, atr_stop)  # wider of agent vs ATR floor
+        stop, target = normalize_stops(entry, stop, target, self.config)
+        proposal = dict(proposal)
+        proposal["stop_loss"] = stop
+        proposal["take_profit"] = target
+        proposal["entry_price"] = entry
+        return proposal
+
     def validate_and_resize(
         self,
         symbol: str,
@@ -74,6 +135,16 @@ class RiskGuard:
         funds = self.broker.get_funds()
 
         if action == "BUY":
+            proposal = self.apply_stop_target(symbol, proposal, last_price)
+            ok, msg = self.risk_reward_ok(
+                proposal["entry_price"], proposal["stop_loss"], proposal["take_profit"],
+            )
+            if not ok:
+                return False, 0, msg
+            ok, msg = self.fee_edge_ok(notional, proposal["entry_price"], proposal["take_profit"])
+            if not ok:
+                return False, 0, msg
+
             if notional < self.MIN_TRADE_VALUE:
                 return False, 0, f"trade value Rs.{notional:.0f} below min Rs.{self.MIN_TRADE_VALUE}"
             max_notional = self.capital * self.MAX_POSITION_PCT
@@ -86,7 +157,7 @@ class RiskGuard:
             if notional < self.MIN_TRADE_VALUE:
                 return False, 0, "insufficient cash for minimum trade after resize"
 
-            stop = float(proposal.get("stop_loss") or last_price * (1 - self.config.get("stop_loss_pct", 4) / 100))
+            stop = float(proposal.get("stop_loss") or last_price * (1 - self.config.get("stop_loss_pct", 6) / 100))
             risk_per_share = max(last_price - stop, last_price * 0.01)
             portfolio_risk = risk_per_share * qty
             max_risk = self.capital * self.MAX_PORTFOLIO_RISK_PCT

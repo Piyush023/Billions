@@ -15,9 +15,14 @@ Billions/
 │   ├── agents/               12 LLM agents + memory + trade-history RAG
 │   ├── brokers/              paper (default) / Groww / Zerodha adapters
 │   ├── investments/          Mutual funds (AMFI) + IPO analysis (NSE)
+│   ├── trading/              Screener, entry/exit rules, risk guard, desk coordination
+│   ├── pipeline/             Analyst panel, consensus utils, portfolio planner
+│   ├── market/               Price enrichment + news-driven discovery
+│   ├── monitoring/           Portfolio sentinel (sell-side guardian)
 │   ├── orchestrator.py       The daily decision cycle
 │   ├── server.py             FastAPI + scheduler + WebSocket
 │   ├── storage.py            SQLite audit trail
+│   ├── notifications.py      Email alerts (mailer integration)
 │   └── dashboard.html        The web UI
 │
 ├── legacy_bot/               🗄 OLD quantitative bot (pre-LLM era). Not part of

@@ -30,8 +30,8 @@ from wealth_platform.agents.risk_debators import (
 )
 from wealth_platform.agents.trade_history_rag import TradeHistoryRAG
 from wealth_platform.agents.trader_agent import TraderAgent
-from wealth_platform.analyst_panel import AnalystPanelAgent, CompactDecisionAgent
-from wealth_platform.analyst_utils import (
+from wealth_platform.pipeline.analyst_panel import AnalystPanelAgent, CompactDecisionAgent
+from wealth_platform.pipeline.analyst_utils import (
     compute_ml_signal,
     consensus_vote,
     derive_sentiment_block,
@@ -39,11 +39,15 @@ from wealth_platform.analyst_utils import (
     research_gate_allows,
 )
 from wealth_platform.brokers import get_broker
-from wealth_platform.exit_levels import exit_reason
-from wealth_platform.market_enrichment import enrich
-from wealth_platform.portfolio_planner import PortfolioPlanner
-from wealth_platform.risk_guard import RiskGuard
-from wealth_platform.token_budget import TokenBudget
+from wealth_platform.market.enrichment import enrich
+from wealth_platform.trading.coordination import TRADE_LOCK, SharedDesk
+from wealth_platform.trading.entry_filters import nifty_trend_ok, stock_entry_ok
+from wealth_platform.trading.exit_levels import ExitSignal, exit_reason
+from wealth_platform.trading.risk_guard import RiskGuard
+from wealth_platform.trading.screener import BuiltInScreener
+from wealth_platform.trading.token_budget import TokenBudget
+from wealth_platform.pipeline.portfolio_planner import PortfolioPlanner
+from wealth_platform.market.discovery import NewsStockDiscovery
 from wealth_platform.investments.ipo_manager import IPOManager
 from wealth_platform.investments.mutual_funds import MutualFundManager
 from wealth_platform.llm.llm_client import LLMClient
@@ -63,7 +67,15 @@ AGGRESSIVE_STYLE = (
     "but when evidence is mixed, lean toward action with controlled size rather than HOLD. "
     "Realism constraint: target setups with honest 3-10% upside over days to weeks; do NOT "
     "fabricate conviction or inflate confidence numbers to force trades — bad trades at "
-    "Rs.60/round-trip cost compound against the goal."
+    "Rs.120/round-trip cost compound against the goal."
+)
+
+BALANCED_STYLE = (
+    "DESK PROFILE: BALANCED POSITIONAL. Hold quality NIFTY-100 setups for 2-8 weeks. "
+    "Target +10-15% with trailing protection after +4%. Require at least 2:1 reward/risk "
+    "and net edge after ~Rs.120 round-trip fees. Prefer pullbacks above SMA50 in an uptrending "
+    "market; skip extended blow-off tops. Default to HOLD when analysts disagree or confidence "
+    "is borderline. Only BUY when the multi-week thesis is clear."
 )
 
 
@@ -84,15 +96,15 @@ class WealthOrchestrator:
         self.history_rag = TradeHistoryRAG(self.storage)
         self.risk_guard = RiskGuard(self.config, self.broker)
         self.token_budget = TokenBudget(self.storage, self.config)
-        from wealth_platform.coordination import TRADE_LOCK, SharedDesk
-        from wealth_platform.news_discovery import NewsStockDiscovery
-        from wealth_platform.screener import BuiltInScreener
-
         self.screener = BuiltInScreener()
         self.news_discovery = NewsStockDiscovery(self.llm)
         self.trade_lock = TRADE_LOCK
         self.desk = SharedDesk(exit_cooloff_days=self.config.get("exit_cooloff_days", 3))
-        self.style_suffix = AGGRESSIVE_STYLE if self.config.get("strategy_profile") == "aggressive" else ""
+        self.style_suffix = (
+            BALANCED_STYLE if self.config.get("strategy_profile") == "balanced"
+            else AGGRESSIVE_STYLE if self.config.get("strategy_profile") == "aggressive"
+            else ""
+        )
         self._analyzed_on: Optional[str] = None  # date string
         self._analyzed_today: set = set()
         self._current_cycle_id: Optional[int] = None
@@ -191,14 +203,40 @@ class WealthOrchestrator:
         positions = self.broker.get_positions()
         held = positions.get(symbol)
         funds = self.broker.get_funds()
-        min_score = self.config.get("screener_min_score", -999)
+        min_score = self.config.get("screener_min_score", 0)
         score = self.screener.score_for(symbol)
         if score is not None and score < min_score:
             return f"screener score {score} below floor {min_score}"
-        max_positions = self.config.get("max_open_positions", 5)
+        if score is None and not held and self.config.get("require_screener_score", True):
+            watchlist = set(self.config.get("watchlist", []))
+            if symbol not in watchlist:
+                return "symbol outside screened universe (news/unlisted pick blocked)"
+        max_positions = self.config.get("max_open_positions", 3)
         if not held and len(positions) >= max_positions and funds.available_cash < 1000:
             return f"max positions ({max_positions}) and insufficient cash"
+        if not held:
+            if self.config.get("require_index_trend", True):
+                ok, msg = nifty_trend_ok()
+                if not ok:
+                    return msg
+            ok, msg = stock_entry_ok(symbol, self.config)
+            if not ok:
+                return msg
         return None
+
+    def _gate_kwargs(self) -> dict:
+        return {
+            "require_consensus": self.config.get("require_consensus_for_buy", True),
+        }
+
+    def _research_gate(self, rating, confidence, held_qty, consensus=None) -> tuple:
+        gate = self.history_rag.calibrated_confidence_gate(
+            self.config.get("research_confidence_gate", 58),
+        )
+        return research_gate_allows(
+            rating, confidence, gate, held_qty,
+            consensus=consensus, **self._gate_kwargs(),
+        )
 
     def _gather_analyst_data(self, symbol: str) -> str:
         """Raw data bundle for compact analyst panel."""
@@ -221,6 +259,9 @@ class WealthOrchestrator:
         quote_price: float,
     ) -> dict:
         """Shared execution path with price refresh, risk guard, and notifications."""
+        if proposal.get("action") == "BUY":
+            proposal = self.risk_guard.apply_stop_target(symbol, proposal, quote_price)
+
         approved, quantity, guard_reason = self.risk_guard.validate_and_resize(
             symbol, proposal, pm_decision, quote_price,
         )
@@ -252,6 +293,14 @@ class WealthOrchestrator:
 
             rotate_out = pm_decision.get("fund_by_selling")
             if rotate_out and proposal["action"] == "BUY":
+                rot_ok, rot_msg = self.risk_guard.rotation_allowed(rotate_out)
+                if not rot_ok:
+                    self.storage.log_decision(
+                        self._current_cycle_id, symbol, research_decision.get("rating"),
+                        proposal, {"decision": "ABORTED", "reasoning": rot_msg}, False,
+                    )
+                    return {"symbol": symbol, "action": "aborted", "research": research_decision,
+                            "proposal": proposal, "pm": pm_decision, "reason": rot_msg}
                 held = self.broker.get_positions().get(rotate_out)
                 if held and held.quantity > 0:
                     sell_result = self.broker.place_order(
@@ -311,6 +360,7 @@ class WealthOrchestrator:
                     symbol, proposal.get("reasoning", ""),
                     float(proposal.get("stop_loss") or 0),
                     float(proposal.get("take_profit") or 0),
+                    fill_price,
                 )
             self.memory.record_trade_lifecycle(
                 symbol, proposal["action"], research_decision.get("rating", ""),
@@ -387,11 +437,12 @@ class WealthOrchestrator:
             self._emit("research_verdict", {"symbol": symbol, "verdict": research_decision})
 
             gate = self.history_rag.calibrated_confidence_gate(
-                self.config.get("research_confidence_gate", 40),
+                self.config.get("research_confidence_gate", 58),
             )
             positions = {s: p.quantity for s, p in self.broker.get_positions().items()}
             ok, gate_reason = research_gate_allows(
                 research_decision["rating"], research_decision["confidence"], gate, positions.get(symbol, 0),
+                **self._gate_kwargs(),
             )
             if not ok:
                 self.storage.log_decision(
@@ -476,6 +527,20 @@ class WealthOrchestrator:
             f"=== PANEL VOTE ===\n{vote}\n\n{history_context[:1500]}"
         )
 
+        if vote["agreement"] == "split" and self.config.get("require_consensus_for_buy", True):
+            research_decision = {
+                "rating": "HOLD",
+                "confidence": vote["confidence"],
+                "rationale": "Analyst panel split — default HOLD until clear consensus.",
+                "key_risks": [],
+            }
+            self._emit("research_verdict", {"symbol": symbol, "verdict": research_decision})
+            self.storage.log_decision(
+                self._current_cycle_id, symbol, "HOLD",
+                {}, {"decision": "SKIPPED", "reasoning": "split analyst consensus"}, False,
+            )
+            return {"symbol": symbol, "action": "none", "research": research_decision}
+
         transcript = ""
         if self.token_budget.allow_debate(vote["needs_debate"]):
             self._emit("stage", {"symbol": symbol, "stage": "debate"})
@@ -501,10 +566,11 @@ class WealthOrchestrator:
             )
         self._emit("research_verdict", {"symbol": symbol, "verdict": research_decision})
 
-        gate = self.history_rag.calibrated_confidence_gate(self.config.get("research_confidence_gate", 40))
+        gate = self.history_rag.calibrated_confidence_gate(self.config.get("research_confidence_gate", 58))
         positions = {s: p.quantity for s, p in self.broker.get_positions().items()}
         ok, gate_reason = research_gate_allows(
             research_decision["rating"], research_decision["confidence"], gate, positions.get(symbol, 0),
+            consensus=vote.get("agreement"), **self._gate_kwargs(),
         )
         if not ok:
             self.storage.log_decision(
@@ -529,6 +595,8 @@ class WealthOrchestrator:
                 proposal, {"decision": "NO_TRADE", "reasoning": proposal.get("reasoning", "")}, False,
             )
             return {"symbol": symbol, "action": "none", "research": research_decision, "proposal": proposal}
+
+        proposal = self.risk_guard.apply_stop_target(symbol, proposal, quote.last_price)
 
         if proposal.get("action") == "SELL" and positions.get(symbol, 0) < proposal.get("quantity", 0):
             reason = "SELL without sufficient holding (CNC)"
@@ -573,40 +641,74 @@ class WealthOrchestrator:
     # Exit management (math only — zero LLM cost, callable every 5 min)
     # ------------------------------------------------------------------
 
+    def _exit_config(self) -> dict:
+        trail = self.config.get("trailing_stop", {})
+        return {
+            "stop_pct": self.config.get("stop_loss_pct", 6.0),
+            "target_pct": self.config.get("take_profit_pct", 12.0),
+            "partial_take_pct": self.config.get("partial_take_profit_pct", 5.0),
+            "trail_activate_pct": trail.get("activate_pct", 4.0),
+            "trail_pct": trail.get("trail_pct", 2.5),
+        }
+
+    def _process_exit(self, symbol: str, pos, signal: ExitSignal, partial_fraction: float = 0.5):
+        sell_qty = pos.quantity
+        if signal.source == "partial":
+            sell_qty = max(1, int(pos.quantity * partial_fraction))
+            if sell_qty >= pos.quantity and pos.quantity > 1:
+                sell_qty = pos.quantity // 2 or 1
+
+        change = (pos.last_price / pos.average_price - 1) * 100 if pos.average_price else 0
+        avg_before = pos.average_price
+        with self.trade_lock:
+            result = self.broker.place_order(symbol=symbol, quantity=sell_qty, side="SELL", product="CNC")
+        fill_price = result.filled_price or pos.last_price
+        exit_pnl = (fill_price - avg_before) * sell_qty if result.success else None
+        self.storage.log_trade(
+            None, symbol, "SELL", sell_qty, fill_price,
+            self.broker.name, result.order_id or "",
+            "filled" if result.success else "failed", signal.reason,
+            pnl=exit_pnl,
+        )
+        if result.success:
+            self.memory.record_outcome(symbol, change, f"({signal.reason})", exit_pnl)
+            if signal.source == "partial":
+                self.desk.mark_partial_taken(symbol)
+            else:
+                self.desk.record_exit(symbol, signal.reason, change)
+        self._emit("exit", {"symbol": symbol, "reason": signal.reason, "pnl_pct": round(change, 2),
+                            "pnl": round(exit_pnl, 2) if exit_pnl is not None else None,
+                            "quantity": sell_qty})
+        if result.success:
+            self.notifier.send(
+                f"🚪 Exit: SELL {sell_qty} {symbol} ({change:+.1f}%)",
+                f"Sold {sell_qty} {symbol} @ Rs.{fill_price:.2f} — {signal.reason} ({self.broker.name} mode)\n"
+                f"Realized P&L: Rs.{exit_pnl:+,.2f}",
+            )
+        else:
+            self.notifier.send(
+                f"❌ Exit FAILED: SELL {sell_qty} {symbol}",
+                f"{signal.reason} but order failed ({self.broker.name} mode): {result.message}",
+            )
+
     def manage_exits(self):
-        stop_pct = self.config.get("stop_loss_pct", 7.0)
-        target_pct = self.config.get("take_profit_pct", 14.0)
+        cfg = self._exit_config()
+        partial_fraction = self.config.get("partial_take_fraction", 0.5)
         for symbol, pos in list(self.broker.get_positions().items()):
-            hit = exit_reason(symbol, pos.last_price, pos.average_price, self.desk, stop_pct, target_pct)
+            thesis = self.desk.thesis_for(symbol)
+            partial_taken = bool(thesis.get("partial_taken")) if thesis else False
+            self.desk.bump_high_water(symbol, pos.last_price)
+            hit = exit_reason(
+                symbol, pos.last_price, pos.average_price, self.desk,
+                cfg["stop_pct"], cfg["target_pct"],
+                partial_taken=partial_taken,
+                partial_take_pct=cfg["partial_take_pct"],
+                trail_activate_pct=cfg["trail_activate_pct"],
+                trail_pct=cfg["trail_pct"],
+            )
             if not hit:
                 continue
-            reason, _source = hit
-            change = (pos.last_price / pos.average_price - 1) * 100 if pos.average_price else 0
-            with self.trade_lock:
-                result = self.broker.place_order(symbol=symbol, quantity=pos.quantity, side="SELL", product="CNC")
-            fill_price = result.filled_price or pos.last_price
-            exit_pnl = (fill_price - pos.average_price) * pos.quantity if result.success else None
-            self.storage.log_trade(None, symbol, "SELL", pos.quantity, fill_price,
-                                   self.broker.name, result.order_id or "",
-                                   "filled" if result.success else "failed", reason,
-                                   pnl=exit_pnl)
-            if result.success:
-                pct = change
-                self.memory.record_outcome(symbol, pct, f"({reason})", exit_pnl)
-                self.desk.record_exit(symbol, reason, change)
-            self._emit("exit", {"symbol": symbol, "reason": reason, "pnl_pct": round(change, 2),
-                                "pnl": round(exit_pnl, 2) if exit_pnl is not None else None})
-            if result.success:
-                self.notifier.send(
-                    f"🚪 Exit: SELL {pos.quantity} {symbol} ({change:+.1f}%)",
-                    f"Sold {pos.quantity} {symbol} @ Rs.{fill_price:.2f} — {reason} ({self.broker.name} mode)\n"
-                    f"Realized P&L: Rs.{exit_pnl:+,.2f}",
-                )
-            else:
-                self.notifier.send(
-                    f"❌ Exit FAILED: SELL {pos.quantity} {symbol}",
-                    f"{reason} but order failed ({self.broker.name} mode): {result.message}",
-                )
+            self._process_exit(symbol, pos, hit, partial_fraction)
 
     # ------------------------------------------------------------------
     # Full daily cycle + EOD report

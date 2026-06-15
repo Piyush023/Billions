@@ -64,7 +64,13 @@ class AgentMemory:
         relevant = [b for b in blocks if symbol.upper() in b.upper()]
         if not relevant:
             return f"No prior lessons for {symbol}."
-        return f"Past lessons on {symbol}:\n" + "\n".join(relevant[-4:])[-max_chars:]
+        # Surface losing outcomes first so agents avoid repeating mistakes
+        def sort_key(block: str) -> tuple:
+            loss = "OUTCOME" in block and ("-" in block or "Realized: -" in block)
+            pnl_hit = "P&L: Rs.-" in block or "Realized: -" in block
+            return (0 if (loss or pnl_hit) else 1, block)
+        relevant.sort(key=sort_key)
+        return f"Past lessons on {symbol} (losses prioritized):\n" + "\n".join(relevant[-4:])[-max_chars:]
 
     def lessons(self) -> str:
         parts = []

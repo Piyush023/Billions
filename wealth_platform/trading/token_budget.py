@@ -3,7 +3,7 @@
 import logging
 from typing import List
 
-logger = logging.getLogger("wealth_platform.token_budget")
+logger = logging.getLogger("wealth_platform.trading.token_budget")
 
 
 class TokenBudget:
@@ -26,16 +26,32 @@ class TokenBudget:
     def mode(self) -> str:
         self._refresh()
         configured = self.config.get("pipeline_mode", "auto")
+        floor = self.config.get("pipeline_floor_during_market", "")
         if configured != "auto":
-            return configured
-        ratio = self._calls_today / max(self.daily_limit, 1)
-        if ratio >= 0.85:
-            return self.MODE_MINIMAL
-        if ratio >= 0.65:
-            return self.MODE_COMPACT
-        if ratio >= 0.45:
-            return self.MODE_STANDARD
-        return self.MODE_FULL
+            base = configured
+        else:
+            ratio = self._calls_today / max(self.daily_limit, 1)
+            if ratio >= 0.85:
+                base = self.MODE_MINIMAL
+            elif ratio >= 0.65:
+                base = self.MODE_COMPACT
+            elif ratio >= 0.45:
+                base = self.MODE_STANDARD
+            else:
+                base = self.MODE_FULL
+        if floor and self._market_open():
+            order = [self.MODE_MINIMAL, self.MODE_COMPACT, self.MODE_STANDARD, self.MODE_FULL]
+            if order.index(base) < order.index(floor):
+                return floor
+        return base
+
+    @staticmethod
+    def _market_open() -> bool:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        now = datetime.now(ZoneInfo("Asia/Kolkata"))
+        return now.weekday() < 5 and (9, 15) <= (now.hour, now.minute) <= (15, 25)
 
     def calls_remaining(self) -> int:
         self._refresh()

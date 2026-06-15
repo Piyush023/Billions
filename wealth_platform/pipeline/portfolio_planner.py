@@ -5,7 +5,7 @@ from typing import Callable, List, Optional
 
 from wealth_platform.agents.base_agent import BaseAgent
 
-logger = logging.getLogger("wealth_platform.portfolio_planner")
+logger = logging.getLogger("wealth_platform.pipeline.portfolio_planner")
 
 
 class PortfolioPlanner(BaseAgent):

@@ -32,12 +32,12 @@ from typing import Dict, Optional
 
 import requests
 
-from wealth_platform.exit_levels import exit_reason
+from wealth_platform.trading.exit_levels import exit_reason
 
-logger = logging.getLogger("wealth_platform.sentinel")
+logger = logging.getLogger("wealth_platform.monitoring.sentinel")
 
 STATE_PATH = os.path.join("data", "sentinel_state.json")
-EXIT_CONFIDENCE_THRESHOLD = 65
+EXIT_CONFIDENCE_THRESHOLD = 75
 
 
 class PortfolioSentinel:
@@ -77,18 +77,26 @@ class PortfolioSentinel:
         if not positions:
             return
 
-        # Layer 2: thesis stops + sentinel-tightened stops (pure math)
+        cfg = self.orch._exit_config()
+        # Layer 2: thesis stops + trailing + partial (pure math)
         for symbol, pos in list(positions.items()):
             thesis = self.orch.desk.thesis_for(symbol)
+            partial_taken = bool(thesis.get("partial_taken")) if thesis else False
+            self.orch.desk.bump_high_water(symbol, pos.last_price)
             sentinel_stop = self.stop_overrides.get(symbol)
             hit = exit_reason(
                 symbol, pos.last_price, pos.average_price, self.orch.desk,
-                self.orch.config.get("stop_loss_pct", 7.0),
-                self.orch.config.get("take_profit_pct", 14.0),
+                cfg["stop_pct"], cfg["target_pct"],
                 sentinel_stop=sentinel_stop,
+                partial_taken=partial_taken,
+                partial_take_pct=cfg["partial_take_pct"],
+                trail_activate_pct=cfg["trail_activate_pct"],
+                trail_pct=cfg["trail_pct"],
             )
             if hit:
-                self._exit(symbol, pos, hit[0])
+                self.orch._process_exit(
+                    symbol, pos, hit, self.orch.config.get("partial_take_fraction", 0.5),
+                )
                 positions.pop(symbol, None)
         if not positions:
             return
@@ -114,21 +122,21 @@ class PortfolioSentinel:
                 news_blocks.append(f"{symbol} news:\n" + "\n".join(f"  - {h}" for h in headlines))
 
         system = (
-            "You are the Sentinel, guardian agent for a positional Indian equity desk (2-12 week holds). "
+            "You are the Sentinel, guardian agent for a positional Indian equity desk (2-8 week holds). "
             "You monitor OWNED positions only. For each position, given its P&L state and fresh news, "
             "decide: HOLD (default — do not churn positions on noise), TIGHTEN_STOP (thesis weakening "
-            "or big gain to protect; give new_stop price below current price), or EXIT_NOW (only for "
-            "materially negative company-specific news or clear thesis break). Exiting costs ~Rs.60 "
+            "or meaningful gain to protect; give new_stop price below current price), or EXIT_NOW (only for "
+            "materially negative company-specific news or clear thesis break). Exiting costs ~Rs.120 "
             "and positional trades need room to breathe — be decisive but not jumpy. "
+            "NEVER recommend EXIT_NOW on a profitable position (+2% or more) unless there is a "
+            "severe company-specific catalyst (fraud, results miss, regulatory action). "
             'Respond with JSON: {"assessments": [{"symbol": "...", "action": "HOLD"|"TIGHTEN_STOP"|"EXIT_NOW", '
             '"new_stop": <float or null>, "confidence": 0-100, "reasoning": "<1-2 sentences>"}]}'
         )
         if self.orch.config.get("strategy_profile") == "aggressive":
             system += (
-                " DESK PROFILE: AGGRESSIVE — capital velocity matters. Additionally flag STAGNATION: "
-                "if a position has gone nowhere (roughly -1% to +1.5%) for 3+ trading days with no "
-                "upcoming catalyst, recommend EXIT_NOW citing stagnation so the desk can rotate the "
-                "capital into a stronger setup. Do not exit positions that are working (>+2%) just to churn."
+                " DESK PROFILE: AGGRESSIVE — you may flag stagnation (roughly -1% to +1.5% for 5+ days) "
+                "for rotation consideration, but do NOT exit positions above +2% just to churn capital."
             )
         user = (
             f"POSITIONS:\n" + "\n".join(position_lines)
@@ -158,7 +166,19 @@ class PortfolioSentinel:
             )
             # Cross-agent sync: buy-side PM sees this note before any new trade
             self.orch.desk.record_sentinel_note(symbol, action, item.get("reasoning", ""), confidence)
+            change = (pos.last_price / pos.average_price - 1) * 100 if pos.average_price else 0
+            min_loss = self.orch.config.get("sentinel_min_loss_for_exit_pct", -2.0)
+            block_profit = self.orch.config.get("sentinel_block_exit_if_profitable", True)
             if action == "EXIT_NOW" and confidence >= EXIT_CONFIDENCE_THRESHOLD:
+                if block_profit and change > 0:
+                    logger.info("Sentinel blocked profitable exit on %s (+%.1f%%)", symbol, change)
+                    continue
+                if change > min_loss and confidence < 85:
+                    logger.info(
+                        "Sentinel blocked soft exit on %s (+%.1f%%, conf %d) — need 85+",
+                        symbol, change, confidence,
+                    )
+                    continue
                 self._exit(symbol, pos, f"sentinel exit: {item.get('reasoning', '')[:120]}")
             elif action == "TIGHTEN_STOP" and item.get("new_stop"):
                 new_stop = float(item["new_stop"])

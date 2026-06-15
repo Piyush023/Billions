@@ -18,7 +18,7 @@ import requests
 
 from wealth_platform.llm.llm_client import LLMClient
 
-logger = logging.getLogger("wealth_platform.news_discovery")
+logger = logging.getLogger("wealth_platform.market.discovery")
 
 RSS_FEEDS = [
     # Google News searches, India edition

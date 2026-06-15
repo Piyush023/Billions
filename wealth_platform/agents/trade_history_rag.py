@@ -97,21 +97,33 @@ class TradeHistoryRAG:
         return "\n".join(lines)
 
     def calibrated_confidence_gate(self, base_gate: int = 40) -> int:
-        """Raise gate if high-confidence historical trades underperform."""
+        """Raise gate when historical trades underperform; tighten hard at 0% win rate."""
         decisions = self.storage._rows(
             "SELECT research_rating, approved, pm_decision FROM decisions WHERE approved=1"
         )
+        trades = self.storage._rows(
+            "SELECT side, pnl, price, quantity FROM trades WHERE status='filled' ORDER BY id"
+        )
+        realized = [t for t in trades if t["side"] == "SELL" and t.get("pnl") is not None]
+        if len(realized) >= 3:
+            wins = sum(1 for t in realized if (t["pnl"] or 0) > 0)
+            wr = wins / len(realized)
+            if wins == 0:
+                return min(70, base_gate + 15)
+            if wr < 0.35:
+                return min(65, base_gate + 12)
+            if wr < 0.45:
+                return min(60, base_gate + 8)
+            if wr > 0.60 and len(decisions) >= 8:
+                return max(35, base_gate - 5)
         if len(decisions) < 8:
             return base_gate
-        # Simple heuristic: if win rate < 40% with enough history, tighten gate
         stats = self.performance_stats()
         if "Win rate:" in stats:
             try:
                 wr = int(stats.split("Win rate:")[1].split("%")[0].split("(")[-1].strip())
                 if wr < 40:
-                    return min(55, base_gate + 10)
-                if wr > 60:
-                    return max(30, base_gate - 5)
+                    return min(65, base_gate + 10)
             except (ValueError, IndexError):
                 pass
         return base_gate

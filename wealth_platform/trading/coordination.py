@@ -31,7 +31,7 @@ import threading
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
-logger = logging.getLogger("wealth_platform.coordination")
+logger = logging.getLogger("wealth_platform.trading.coordination")
 
 STATE_PATH = os.path.join("data", "desk_state.json")
 
@@ -51,15 +51,34 @@ class SharedDesk:
 
     # ---- buy side writes ------------------------------------------------
 
-    def record_entry(self, symbol: str, reasoning: str, stop_loss: float, take_profit: float):
+    def record_entry(self, symbol: str, reasoning: str, stop_loss: float, take_profit: float, entry_price: float = 0):
         with self._mutex:
             self.position_theses[symbol] = {
                 "reasoning": reasoning[:400],
                 "stop_loss": stop_loss,
                 "take_profit": take_profit,
+                "entry_price": entry_price,
+                "high_water_mark": entry_price or 0,
+                "partial_taken": False,
                 "opened_at": datetime.now().isoformat(),
             }
             self._save()
+
+    def bump_high_water(self, symbol: str, price: float):
+        with self._mutex:
+            thesis = self.position_theses.get(symbol)
+            if not thesis:
+                return
+            hw = float(thesis.get("high_water_mark") or thesis.get("entry_price") or 0)
+            if price > hw:
+                thesis["high_water_mark"] = price
+                self._save()
+
+    def mark_partial_taken(self, symbol: str):
+        with self._mutex:
+            if symbol in self.position_theses:
+                self.position_theses[symbol]["partial_taken"] = True
+                self._save()
 
     # ---- sentinel writes ------------------------------------------------
 

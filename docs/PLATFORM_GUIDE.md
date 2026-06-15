@@ -354,7 +354,24 @@ wealth_platform/
 │   ├── trader_agent.py          trade proposal JSON
 │   ├── risk_debators.py         Aggressive/Conservative/Neutral debate
 │   ├── portfolio_manager_agent.py  final APPROVE/REJECT gate
+│   ├── trade_history_rag.py     calibrated gates + symbol history context
 │   └── agent_memory.py          lessons file fed back to the PM
+├── trading/
+│   ├── screener.py              NIFTY-100 momentum screener (no TA-Lib)
+│   ├── entry_filters.py         NIFTY/stock trend gates + ATR stops
+│   ├── exit_levels.py           thesis stops, trailing stop, partial profit
+│   ├── risk_guard.py            2:1 R:R, fee edge, rotation rules
+│   ├── coordination.py          SharedDesk + global trade lock
+│   └── token_budget.py          pipeline mode degradation (full→minimal)
+├── pipeline/
+│   ├── analyst_utils.py         consensus vote, ML signal, research gate
+│   ├── analyst_panel.py         compact 2-call analyst mode
+│   └── portfolio_planner.py     1 LLM call/cycle to pick symbols
+├── market/
+│   ├── enrichment.py            vs NIFTY, volume, 52w range (pre-analyst)
+│   └── discovery.py             news-driven symbol discovery
+├── monitoring/
+│   └── sentinel.py              parallel sell-side guardian (PortfolioSentinel)
 ├── brokers/
 │   ├── base_broker.py           common interface
 │   ├── paper_broker.py          default; realistic costs; persisted state
@@ -364,12 +381,14 @@ wealth_platform/
 │   ├── mutual_funds.py          AMFI NAVs, valuation, LLM SIP advisor
 │   └── ipo_manager.py           NSE IPO feed + LLM apply/avoid analysis
 ├── storage.py                   SQLite audit trail
+├── notifications.py             email on trades, bot start/stop, EOD
 ├── orchestrator.py              the daily cycle (also runnable directly)
 ├── server.py                    FastAPI + scheduler + WebSocket
-└── dashboard.html               the platform UI
+└── dashboard.html                 the platform UI
 wealth_config.json               your settings (no secrets!)
 requirements_platform.txt        dependencies
 docs/DEPENDENCIES_NEEDED.md      what YOU must provide (keys, accounts)
+data/                            runtime state (SQLite, paper portfolio, desk state)
 ```
 
 Existing modules (`dynamic_stock_screener.py`, `ai_trading_engine.py`, etc.)

@@ -32,6 +32,8 @@ from typing import Dict, Optional
 
 import requests
 
+from wealth_platform.exit_levels import exit_reason
+
 logger = logging.getLogger("wealth_platform.sentinel")
 
 STATE_PATH = os.path.join("data", "sentinel_state.json")
@@ -75,11 +77,18 @@ class PortfolioSentinel:
         if not positions:
             return
 
-        # Layer 2: enforce previously tightened stops (pure math, no LLM)
+        # Layer 2: thesis stops + sentinel-tightened stops (pure math)
         for symbol, pos in list(positions.items()):
-            override = self.stop_overrides.get(symbol)
-            if override and pos.last_price and pos.last_price <= override:
-                self._exit(symbol, pos, f"sentinel-tightened stop {override:.2f} hit")
+            thesis = self.orch.desk.thesis_for(symbol)
+            sentinel_stop = self.stop_overrides.get(symbol)
+            hit = exit_reason(
+                symbol, pos.last_price, pos.average_price, self.orch.desk,
+                self.orch.config.get("stop_loss_pct", 7.0),
+                self.orch.config.get("take_profit_pct", 14.0),
+                sentinel_stop=sentinel_stop,
+            )
+            if hit:
+                self._exit(symbol, pos, hit[0])
                 positions.pop(symbol, None)
         if not positions:
             return

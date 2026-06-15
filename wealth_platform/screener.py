@@ -60,6 +60,15 @@ class BuiltInScreener:
         logger.info("Screener top %d: %s", min(top_n, 10), top[:10])
         return top
 
+    def score_for(self, symbol: str) -> Optional[float]:
+        """Return cached screener score for pre-gate checks."""
+        if self._cache_date != date.today() or not self._cache:
+            self.ranked_symbols(top_n=len(self.universe))
+        for sym, score in self._cache:
+            if sym == symbol:
+                return score
+        return None
+
     def _score_universe(self) -> List[Tuple[str, float]]:
         tickers = [f"{s}.NS" for s in self.universe]
         try:

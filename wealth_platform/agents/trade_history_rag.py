@@ -54,7 +54,7 @@ class TradeHistoryRAG:
         return "\n".join(lines)
 
     def performance_stats(self) -> str:
-        """Aggregate outcomes so agents see what has and hasn't worked."""
+        """Aggregate outcomes using stored pnl where available."""
         trades = self.storage._rows(
             "SELECT * FROM trades WHERE status='filled' ORDER BY id"
         )
@@ -62,17 +62,22 @@ class TradeHistoryRAG:
         if not trades and not decisions:
             return "No performance history yet — this desk has not completed any trades."
 
-        # Pair buys with sells per symbol (FIFO) to estimate realized outcomes
-        open_lots: dict = {}
         realized: List[float] = []
         for t in trades:
-            sym = t["symbol"]
-            if t["side"] == "BUY":
-                open_lots.setdefault(sym, []).append(t)
-            elif t["side"] == "SELL" and open_lots.get(sym):
-                buy = open_lots[sym].pop(0)
-                if buy["price"]:
-                    realized.append((t["price"] / buy["price"] - 1) * 100)
+            if t["side"] == "SELL" and t.get("pnl") is not None:
+                buy_notional = (t["price"] or 1) * max(t["quantity"], 1) - (t["pnl"] or 0)
+                if buy_notional > 0:
+                    realized.append((t["pnl"] / buy_notional) * 100)
+        if not realized:
+            open_lots: dict = {}
+            for t in trades:
+                sym = t["symbol"]
+                if t["side"] == "BUY":
+                    open_lots.setdefault(sym, []).append(t)
+                elif t["side"] == "SELL" and open_lots.get(sym):
+                    buy = open_lots[sym].pop(0)
+                    if buy["price"]:
+                        realized.append((t["price"] / buy["price"] - 1) * 100)
 
         approved = sum(1 for d in decisions if d["approved"])
         rejected = len(decisions) - approved
@@ -91,6 +96,26 @@ class TradeHistoryRAG:
                 lines.append(f"Avg loss: {sum(losses) / len(losses):+.1f}%.")
         return "\n".join(lines)
 
+    def calibrated_confidence_gate(self, base_gate: int = 40) -> int:
+        """Raise gate if high-confidence historical trades underperform."""
+        decisions = self.storage._rows(
+            "SELECT research_rating, approved, pm_decision FROM decisions WHERE approved=1"
+        )
+        if len(decisions) < 8:
+            return base_gate
+        # Simple heuristic: if win rate < 40% with enough history, tighten gate
+        stats = self.performance_stats()
+        if "Win rate:" in stats:
+            try:
+                wr = int(stats.split("Win rate:")[1].split("%")[0].split("(")[-1].strip())
+                if wr < 40:
+                    return min(55, base_gate + 10)
+                if wr > 60:
+                    return max(30, base_gate - 5)
+            except (ValueError, IndexError):
+                pass
+        return base_gate
+
     def build_context(self, symbol: str) -> str:
         """Everything an agent should know from history, ready to inject."""
         return (
@@ -99,3 +124,10 @@ class TradeHistoryRAG:
             "Use this record: avoid repeating past mistakes, respect setups that "
             "previously failed, and weigh confidence accordingly."
         )
+
+    def build_analyst_context(self, symbol: str, memory_symbol_lessons: str = "") -> str:
+        """Injected at analyst stage — includes symbol-specific lessons early."""
+        base = self.build_context(symbol)
+        if memory_symbol_lessons:
+            base = memory_symbol_lessons + "\n\n" + base
+        return base

@@ -31,11 +31,10 @@ class ResearchManager(BaseAgent):
     name = "research_manager"
     role = "Research Manager"
     system_prompt = (
-        "You are the research manager. You have the analyst reports and a bull-vs-bear debate. "
+        "You are the research manager. You have analyst reports and optionally a bull-vs-bear debate. "
         "Weigh the arguments and commit to a clear stance — do not default to HOLD unless evidence "
-        "is genuinely balanced. Respond with a JSON object: "
-        "This desk trades positionally (2-12 week holds, delivery only) — judge the stock on its "
-        "multi-week outlook, not intraday momentum. Respond with a JSON object: "
+        "is genuinely balanced. This desk trades positionally (2-12 week holds, delivery only). "
+        'Respond ONLY with JSON: '
         '{"rating": "BUY"|"OVERWEIGHT"|"HOLD"|"UNDERWEIGHT"|"SELL", '
         '"confidence": 0-100, "rationale": "<3-5 sentences>", '
         '"key_risks": ["..."], "time_horizon": "swing"|"positional"}'
@@ -45,20 +44,21 @@ class ResearchManager(BaseAgent):
     def decide(self, symbol: str, analyst_reports: str, debate_transcript: str) -> dict:
         context = (
             f"Stock: {symbol}\n\nANALYST REPORTS:\n{analyst_reports}\n\n"
-            f"DEBATE TRANSCRIPT:\n{debate_transcript}"
+            f"DEBATE TRANSCRIPT:\n{debate_transcript or 'Skipped — strong analyst consensus.'}"
         )
-        output = self.run(context)
-        from wealth_platform.llm.llm_client import extract_json
-
         try:
-            return extract_json(output.report)
-        except ValueError:
+            return self.llm.chat_json(
+                self.system_prompt + ("\n\n" + self.style_suffix if self.style_suffix else ""),
+                context,
+                max_tokens=self.max_tokens,
+            )
+        except Exception:  # noqa: BLE001
             return {
                 "rating": "HOLD",
                 "confidence": 0,
                 "rationale": "Research manager output could not be parsed; defaulting to HOLD.",
                 "key_risks": ["unparseable LLM output"],
-                "time_horizon": "swing",
+                "time_horizon": "positional",
             }
 
 

@@ -130,6 +130,11 @@ scheduler.add_job(
     CronTrigger(day_of_week="mon-fri", hour=15, minute=35, timezone=IST),
     id="eod_report",
 )
+scheduler.add_job(
+    lambda: orchestrator.memory.summarize_weekly(orchestrator.llm),
+    CronTrigger(day_of_week="sun", hour=9, minute=0, timezone=IST),
+    id="weekly_memory_summary",
+)
 
 
 @asynccontextmanager
@@ -212,7 +217,7 @@ def llm_status():
     except Exception:  # noqa: BLE001
         order = []
     counts = {r["provider"]: r["calls"] for r in orchestrator.storage.provider_counts_today()}
-    return [
+    providers = [
         {
             "provider": p,
             "model": orchestrator.llm._model_for(p),
@@ -222,6 +227,14 @@ def llm_status():
         }
         for i, p in enumerate(order)
     ]
+    return {
+        "pipeline_mode": orchestrator.token_budget.mode(),
+        "calls_remaining": orchestrator.token_budget.calls_remaining(),
+        "calibrated_gate": orchestrator.history_rag.calibrated_confidence_gate(
+            orchestrator.config.get("research_confidence_gate", 40),
+        ),
+        "providers": providers,
+    }
 
 
 @app.get("/api/history")

@@ -256,8 +256,12 @@ async function refresh() {
 let lastProvider = '';
 async function refreshLlms() {
   try {
-    const llms = await (await fetch('/api/llm-status')).json();
-    document.getElementById('llms').innerHTML = llms.map(l => `
+    const status = await (await fetch('/api/llm-status')).json();
+    const llms = status.providers || status;
+    const modeChip = status.pipeline_mode
+      ? `<div class="llm" style="border-color:var(--amber)"><b>Pipeline</b> · mode <code>${status.pipeline_mode}</code> · ${status.calls_remaining ?? '?'} calls left · gate ${status.calibrated_gate ?? '?'}</div>`
+      : '';
+    document.getElementById('llms').innerHTML = modeChip + llms.map(l => `
       <div class="llm ${l.provider === lastProvider ? 'last-used' : ''}">
         <b>${l.provider}</b> <span class="muted">#${l.priority}</span> · <code>${l.model}</code><br>
         <span class="lim">limits: ${l.limits.rpm || '-'} rpm · ${l.limits.tpm || '-'} tpm · ${l.limits.daily || '-'}</span>

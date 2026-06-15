@@ -13,8 +13,8 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
-from urllib.parse import urlparse
 
+from wealth_platform.db_url import DatabaseUrlError, mask_database_url, resolve_database_url
 from wealth_platform.paths import DB_PATH, ensure_data_dir
 
 ensure_data_dir()
@@ -139,20 +139,15 @@ CREATE TABLE IF NOT EXISTS eod_reports (
 
 
 def _mask_database_url(url: str) -> str:
-    try:
-        p = urlparse(url)
-        host = p.hostname or "?"
-        port = p.port or 5432
-        user = p.username or "?"
-        db = (p.path or "/").lstrip("/") or "postgres"
-        return f"postgresql://{user}:***@{host}:{port}/{db}"
-    except Exception:  # noqa: BLE001
-        return "postgresql://***"
+    return mask_database_url(url)
 
 
 class Storage:
     def __init__(self, db_path: str = DB_PATH, database_url: Optional[str] = None):
-        self.database_url = database_url or os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+        try:
+            self.database_url = resolve_database_url(database_url)
+        except DatabaseUrlError:
+            raise
         self.backend = "postgres" if self.database_url else "sqlite"
         self.db_path = db_path
         if self.backend == "sqlite":

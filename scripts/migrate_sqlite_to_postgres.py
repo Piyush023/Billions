@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """Copy existing SQLite data into PostgreSQL (one-time migration).
 
-Usage:
+Usage (single URI — password must be URL-encoded if it has @#:/ etc.):
   export DATABASE_URL='postgresql://postgres:PASSWORD@db.xxxx.supabase.co:5432/postgres'
   python scripts/migrate_sqlite_to_postgres.py
-  python scripts/migrate_sqlite_to_postgres.py --sqlite data/platform.db
+
+Usage (separate vars — password can be raw, recommended for Supabase):
+  export POSTGRES_HOST=db.xxxxx.supabase.co
+  export POSTGRES_PASSWORD='your password with special chars!'
+  python scripts/migrate_sqlite_to_postgres.py
+
+Test connection only:
+  python scripts/migrate_sqlite_to_postgres.py --check
 """
 
 import argparse
@@ -28,18 +35,41 @@ TABLES = [
 def main():
     parser = argparse.ArgumentParser(description="Migrate SQLite platform.db → PostgreSQL")
     parser.add_argument("--sqlite", default=os.path.join(ROOT, "data", "platform.db"))
+    parser.add_argument("--check", action="store_true", help="Test Postgres connection only")
     args = parser.parse_args()
 
-    database_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+    from wealth_platform.db_url import DatabaseUrlError, mask_database_url, resolve_database_url
+
+    try:
+        database_url = resolve_database_url()
+    except DatabaseUrlError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
+
     if not database_url:
-        print("ERROR: set DATABASE_URL to your Postgres connection string")
+        print("ERROR: set DATABASE_URL or POSTGRES_HOST + POSTGRES_PASSWORD")
+        print("See docs/DATABASE.md")
         sys.exit(1)
-    if not os.path.exists(args.sqlite):
-        print(f"ERROR: SQLite file not found: {args.sqlite}")
-        sys.exit(1)
+
+    print(f"Target: {mask_database_url(database_url)}")
 
     import psycopg
     from psycopg.rows import dict_row
+
+    try:
+        with psycopg.connect(database_url, row_factory=dict_row) as pg:
+            row = pg.execute("SELECT 1 AS ok").fetchone()
+            print(f"Connection OK (postgres responded: {row})")
+    except Exception as exc:  # noqa: BLE001
+        print(f"ERROR: could not connect to Postgres: {exc}")
+        sys.exit(1)
+
+    if args.check:
+        return
+
+    if not os.path.exists(args.sqlite):
+        print(f"ERROR: SQLite file not found: {args.sqlite}")
+        sys.exit(1)
 
     from wealth_platform.storage import Storage
 
@@ -57,7 +87,6 @@ def main():
             cols = rows[0].keys()
             col_list = ", ".join(cols)
             placeholders = ", ".join(["%s"] * len(cols))
-            # Preserve IDs so foreign keys (cycle_id) stay valid
             sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT (id) DO NOTHING"
             if table == "eod_reports":
                 sql = (
@@ -69,7 +98,6 @@ def main():
                 for row in rows:
                     cur.execute(sql, tuple(row[c] for c in cols))
                     inserted += cur.rowcount
-                # Reset serial sequence to max(id)
                 if "id" in cols:
                     cur.execute(f"SELECT COALESCE(MAX(id), 0) AS m FROM {table}")
                     max_id = cur.fetchone()["m"]
@@ -81,7 +109,7 @@ def main():
             pg.commit()
             print(f"  {table}: {len(rows)} source rows, {inserted} inserted")
 
-    print("\nDone. Set DATABASE_URL in .env and restart the platform.")
+    print("\nDone. Add the same Postgres vars to .env and restart the platform.")
 
 
 if __name__ == "__main__":

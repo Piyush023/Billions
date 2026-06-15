@@ -43,10 +43,34 @@ On your **Oracle VM** (and locally if you test there):
 nano ~/Billions/.env
 ```
 
-Add:
+**Option A — single line** (only if password has no `@`, `#`, `:`, `/`, `%`):
+
 ```
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.xxxxx.supabase.co:5432/postgres
 ```
+
+**Option B — separate vars (recommended)** — password can contain any characters:
+
+```
+POSTGRES_HOST=db.xxxxx.supabase.co
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your-exact-supabase-password
+POSTGRES_PORT=5432
+POSTGRES_DB=postgres
+```
+
+Do **not** leave `[YOUR-PASSWORD]` placeholders in the URL. Copy the real password from Supabase → Project Settings → Database.
+
+Test before migrating:
+
+```bash
+cd ~/Billions
+export POSTGRES_HOST=db.xxxxx.supabase.co
+export POSTGRES_PASSWORD='paste password here'
+.venv/bin/python scripts/migrate_sqlite_to_postgres.py --check
+```
+
+If you see `Connection OK`, proceed.
 
 Install the Postgres driver and restart:
 
@@ -126,6 +150,11 @@ Only the **audit trail** (cycles, trades, decisions, agent reports, EOD) moves t
 ---
 
 ## Troubleshooting
+
+**`UnicodeError: label empty or too long` / `idna codec failed`**
+- Your `DATABASE_URL` is malformed — almost always an **unencoded special character in the password** (e.g. `@` in the password breaks the URL).
+- **Fix:** use Option B (`POSTGRES_HOST` + `POSTGRES_PASSWORD`) in `.env`, or URL-encode the password (`@` → `%40`).
+- Remove any `[YOUR-PASSWORD]` placeholders from the connection string.
 
 **Connection refused / timeout**
 - Supabase **Database Settings → Network** — allow your Oracle VM public IP (or use “allow all” temporarily for testing)

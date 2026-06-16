@@ -38,28 +38,42 @@ def main():
     parser.add_argument("--check", action="store_true", help="Test Postgres connection only")
     args = parser.parse_args()
 
-    from wealth_platform.db_url import DatabaseUrlError, mask_database_url, resolve_database_url
+    from wealth_platform.db_url import (
+        DatabaseUrlError,
+        diagnose_config,
+        mask_database_url,
+        open_postgres_connection,
+        resolve_database_url,
+    )
+
+    print("Config check:")
+    for k, v in diagnose_config().items():
+        print(f"  {k}: {v}")
 
     try:
         database_url = resolve_database_url()
     except DatabaseUrlError as exc:
-        print(f"ERROR: {exc}")
+        print(f"\nERROR: {exc}")
         sys.exit(1)
 
     if not database_url:
-        print("ERROR: set DATABASE_URL or POSTGRES_HOST + POSTGRES_PASSWORD")
-        print("See docs/DATABASE.md")
+        print("\nERROR: Postgres not configured.")
+        print("Set POSTGRES_HOST + POSTGRES_PASSWORD in .env (see docs/DATABASE.md)")
+        print("Comment out any broken DATABASE_URL line in .env")
         sys.exit(1)
 
-    print(f"Target: {mask_database_url(database_url)}")
+    print(f"\nTarget: {mask_database_url(database_url)}")
 
-    import psycopg
     from psycopg.rows import dict_row
 
     try:
-        with psycopg.connect(database_url, row_factory=dict_row) as pg:
+        with open_postgres_connection(database_url, row_factory=dict_row) as pg:
             row = pg.execute("SELECT 1 AS ok").fetchone()
             print(f"Connection OK (postgres responded: {row})")
+            from wealth_platform.db_url import _clean_host, resolve_ipv4
+            host = _clean_host(os.environ.get("POSTGRES_HOST", ""))
+            if host:
+                print(f"  IPv4 hostaddr used: {resolve_ipv4(host)}")
     except Exception as exc:  # noqa: BLE001
         print(f"ERROR: could not connect to Postgres: {exc}")
         sys.exit(1)
@@ -78,7 +92,7 @@ def main():
     dst_storage = Storage(database_url=database_url)
     assert dst_storage.backend == "postgres"
 
-    with psycopg.connect(database_url, row_factory=dict_row) as pg:
+    with open_postgres_connection(database_url, row_factory=dict_row) as pg:
         for table in TABLES:
             rows = src.execute(f"SELECT * FROM {table} ORDER BY id").fetchall()
             if not rows:

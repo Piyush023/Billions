@@ -239,6 +239,7 @@ def data_status():
     return {
         "backend": storage.backend,
         "database": storage.backend_label,
+        "postgres_fallback": getattr(storage, "postgres_fallback", False),
         "data_dir": str(DATA_DIR.resolve()),
         "db_path": _os.path.abspath(storage.db_path) if storage.backend == "sqlite" else None,
         "table_counts": counts,

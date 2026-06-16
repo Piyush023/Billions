@@ -8,14 +8,22 @@ When DATABASE_URL is set, all reads/writes go to Postgres. SQLite file is ignore
 """
 
 import json
+import logging
 import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
 
-from wealth_platform.db_url import DatabaseUrlError, mask_database_url, resolve_database_url
+from wealth_platform.db_url import (
+    DatabaseUrlError,
+    mask_database_url,
+    open_postgres_connection,
+    resolve_database_url,
+)
 from wealth_platform.paths import DB_PATH, ensure_data_dir
+
+logger = logging.getLogger("wealth_platform.storage")
 
 ensure_data_dir()
 
@@ -150,8 +158,27 @@ class Storage:
             raise
         self.backend = "postgres" if self.database_url else "sqlite"
         self.db_path = db_path
+        self.postgres_fallback = False
+        try:
+            self._bootstrap_schema()
+        except Exception as exc:
+            if self.backend != "postgres":
+                raise
+            if os.environ.get("POSTGRES_REQUIRED", "").strip() in ("1", "true", "yes"):
+                raise
+            logger.error(
+                "PostgreSQL unavailable (%s). Falling back to SQLite at %s — "
+                "bot will run; fix POSTGRES_* in .env and restart to use cloud DB.",
+                exc, os.path.abspath(db_path),
+            )
+            self.backend = "sqlite"
+            self.database_url = None
+            self.postgres_fallback = True
+            self._bootstrap_schema()
+
+    def _bootstrap_schema(self):
         if self.backend == "sqlite":
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         with self._conn() as conn:
             self._init_schema(conn)
             self._migrate(conn)
@@ -160,6 +187,8 @@ class Storage:
     def backend_label(self) -> str:
         if self.backend == "postgres":
             return f"postgres ({_mask_database_url(self.database_url)})"
+        if self.postgres_fallback:
+            return f"sqlite fallback ({os.path.abspath(self.db_path)}) — Postgres failed at startup"
         return f"sqlite ({os.path.abspath(self.db_path)})"
 
     def _init_schema(self, conn):
@@ -192,10 +221,9 @@ class Storage:
     @contextmanager
     def _conn(self):
         if self.backend == "postgres":
-            import psycopg
             from psycopg.rows import dict_row
 
-            conn = psycopg.connect(self.database_url, row_factory=dict_row)
+            conn = open_postgres_connection(self.database_url, row_factory=dict_row)
             try:
                 yield conn
                 conn.commit()

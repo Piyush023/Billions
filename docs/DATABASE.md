@@ -156,6 +156,17 @@ Only the **audit trail** (cycles, trades, decisions, agent reports, EOD) moves t
 - **Fix:** use Option B (`POSTGRES_HOST` + `POSTGRES_PASSWORD`) in `.env`, or URL-encode the password (`@` → `%40`).
 - Remove any `[YOUR-PASSWORD]` placeholders from the connection string.
 
+**`Network is unreachable` / IPv6 address in error log**
+- Oracle Cloud VMs often have **no IPv6 route**. Supabase hostnames resolve to IPv6 first; the app now **forces IPv4** automatically.
+- After `git pull`, run `--check` again — you should see `IPv4 hostaddr used: x.x.x.x`.
+- Manual override: `POSTGRES_HOSTADDR=1.2.3.4` (get via `dig +short A db.xxxx.supabase.co` on the server).
+- Alternative: Supabase **Connection pooler** (IPv4-friendly) — port **6543**, host like `aws-0-ap-south-1.pooler.supabase.com`, user `postgres.PROJECT_REF`.
+
+**Service crash-looping after enabling Postgres**
+- Until Postgres connects, the app **falls back to SQLite** so the bot keeps running.
+- Check logs: `journalctl -u wealth-platform -n 30`
+- To require Postgres (fail fast): `POSTGRES_REQUIRED=1` in `.env`.
+
 **Connection refused / timeout**
 - Supabase **Database Settings → Network** — allow your Oracle VM public IP (or use “allow all” temporarily for testing)
 
